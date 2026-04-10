@@ -1,15 +1,17 @@
 # Stage 1: Build frontend locally first
 # RUN: cd frontend && npm install && npm run build
 
-FROM python:3.12-alpine
+FROM python:3.12-slim
 
 WORKDIR /app
 
 # Install ffmpeg
-RUN apk add --no-cache ffmpeg libffi-dev openssl-dev
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install Python packages
-RUN pip install --no-cache-dir \
+RUN pip install --no-cache-dir --break-system-packages \
     fastapi \
     uvicorn \
     sqlalchemy \
