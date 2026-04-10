@@ -6,7 +6,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response, JSONResponse
+from fastapi.responses import Response, JSONResponse, FileResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -112,7 +112,15 @@ app.add_middleware(
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "healthy", "service": "kdo-video"}
+    return {"status": "healthy", "service": "kdo-vtg"}
+
+
+@app.get("/")
+async def root():
+    index_path = Path(__file__).parent.parent / "static" / "index.html"
+    if index_path.exists():
+        return FileResponse(str(index_path))
+    return {"message": "KDO Video Tagger API"}
 
 
 @app.get("/api/folders")
