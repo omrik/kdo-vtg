@@ -1,16 +1,13 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Video,
   FolderOpen,
   Settings,
   Download,
   Play,
-  Pause,
   X,
   RefreshCw,
   FileVideo,
-  Clock,
-  Camera,
   Tag,
   ChevronRight,
   Home,
