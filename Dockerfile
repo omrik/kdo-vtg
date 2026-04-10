@@ -5,12 +5,8 @@ FROM python:3.12-alpine
 
 WORKDIR /app
 
-# Install ffmpeg and opencv dependencies for Alpine
-RUN apk add --no-cache \
-    ffmpeg \
-    libgl \
-    libblas \
-    lapack
+# Install ffmpeg
+RUN apk add --no-cache ffmpeg libffi-dev openssl-dev
 
 # Install Python packages
 RUN pip install --no-cache-dir \
