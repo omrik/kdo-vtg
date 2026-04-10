@@ -12,25 +12,29 @@ FROM debian:bookworm-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies including Python
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         gnupg \
         curl \
+        python3 \
+        python3-pip \
+        python3-venv \
         ffmpeg \
         libgl1 \
         libglib2.0-0 \
         libsm6 \
         libxext6 \
         libxrender1 \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -sf /usr/bin/python3 /usr/bin/python
 
 # Copy backend files
 COPY backend/ ./backend/
 COPY pyproject.toml ./
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -e .
+# Install Python dependencies using pip
+RUN pip install --no-cache-dir --break-system-packages -e .
 
 # Copy frontend build
 COPY --from=frontend-build /app/dist ./static
