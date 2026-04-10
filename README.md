@@ -20,50 +20,73 @@
 - **Storage**: Sufficient space for video files
 - **RAM**: 4GB minimum, 8GB recommended for YOLO processing
 
-## Quick Start
+## Installation on UGREEN NAS
 
-### 1. Prepare Folders
+### Step 1: Install Dockhand
 
-```bash
-# SSH into your NAS
-ssh user@your-ugreen-nas
-
-# Create directories
-mkdir -p /volume1/docker/kdo-vtg/config
-mkdir -p /volume1/media
-
-# Copy your videos to /volume1/media or create subfolders
-```
-
-### 2. Deploy with Dockhand
+Dockhand is a modern Docker management UI for NAS systems.
 
 1. Install **Docker** from UGREEN App Center
 2. Open **Docker** → **Project** → **Create**
-   - Name: `kdo-vtg`
-   - Create folder: `kdo-vtg`
-   - Select folder → **Confirm**
-3. Paste the compose and click **Deploy**:
+3. Name: `dockhand`, Create folder: `dockhand`, Select → **Confirm**
+4. Paste and deploy:
+
+```yaml
+services:
+  dockhand:
+    image: fnsys/dockhand:latest
+    container_name: Dockhand
+    ports:
+      - 3866:3000
+    volumes:
+      - /volume1/docker/dockhand:/app/data:rw
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: always
+```
+
+5. Access Dockhand at `http://your-nas-ip:3866`
+
+### Step 2: Add GitHub Registry (for updates)
+
+1. In Dockhand, go to **Settings** → **Registries**
+2. Click **+ Add registry**
+3. Name: `GitHub`, URL: `https://ghcr.io`
+4. Click **+ Add**
+
+### Step 3: Deploy kdo-vtg
+
+1. Go to **Stacks** → **+ Create**
+2. Name: `kdo-vtg`
+3. Create folder `/volume1/docker/kdo-vtg/` via UGREEN Files app
+4. Paste the compose:
 
 ```yaml
 services:
   kdo-vtg:
-    build: .
+    image: ghcr.io/omrik/kdo-vtg:latest
     container_name: kdo-vtg
     ports:
       - "8080:8000"
     volumes:
-      - ./config:/app/config:rw
+      - kdo_vtg_config:/app/config
       - /volume1/media:/media:ro
     environment:
       - TZ=Europe/Bucharest
       - PUID=1000
       - PGID=100
     restart: unless-stopped
+
+volumes:
+  kdo_vtg_config:
 ```
 
-4. Create folder `/volume1/docker/kdo-vtg/config/` via Files app
+5. Click **Create & Start**
 
-### 3. Access the App
+### Step 4: Mount Your Videos
+
+Create a folder in UGREEN Files app at `/volume1/media/` and copy your videos there, or mount an existing folder.
+
+### Step 5: Access kdo-vtg
 
 Open `http://your-nas-ip:8080` in your browser.
 
@@ -148,7 +171,7 @@ docker build -t kdo-vtg .
 docker run -d \
   --name kdo-vtg \
   -p 8080:8000 \
-  -v $(pwd)/config:/app/config \
+  -v kdo-vtg-config:/app/config \
   -v /path/to/videos:/media:ro \
   kdo-vtg
 ```

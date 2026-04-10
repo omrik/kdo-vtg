@@ -2,16 +2,13 @@ services:
   kdo-vtg:
     build: .
     container_name: kdo-vtg
+    ports:
+      - "8080:8000"
     volumes:
-      - ./videos:/videos:ro
-      - ./output:/output
+      - ./config:/app/config:rw
+      - /path/to/videos:/media:ro
     environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+      - TZ=Europe/Bucharest
+      - PUID=1000
+      - PGID=100
     restart: unless-stopped

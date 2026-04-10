@@ -2,19 +2,10 @@ services:
   kdo-vtg:
     image: ghcr.io/omrik/kdo-vtg:latest
     container_name: kdo-vtg
-    hostname: kdo-vtg
-    security_opt:
-      - no-new-privileges:true
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
     ports:
       - "8080:8000"
     volumes:
-      - /path/to/config:/app/config:rw
+      - /path/to/config:/app/config
       - /path/to/videos:/media:ro
     environment:
       - TZ=Europe/Bucharest

@@ -1,71 +1,81 @@
 # KDO Video Tagger Docker
 
-## Quick Setup for UGREEN NAS
+## Installation on UGREEN NAS with Dockhand
 
-This guide uses **Dockhand**, a modern Docker management platform for UGREEN NAS.
-
-### Using Dockhand (Recommended)
+### Prerequisites
 
 1. Install **Docker** from UGREEN App Center
+2. Install **Dockhand** for container management
 
-2. Open **Docker** app → **Project** → **Create**
-   - Name: `kdo-vtg`
-   - Create folder: `kdo-vtg`
-   - Select the folder → **Confirm**
+### Install Dockhand (if not already installed)
 
-3. Paste the compose configuration and **Deploy**:
+1. Open **Docker** → **Project** → **Create**
+2. Name: `dockhand`, Create folder: `dockhand`, Select → **Confirm**
+3. Deploy this compose:
+
+```yaml
+services:
+  dockhand:
+    image: fnsys/dockhand:latest
+    container_name: Dockhand
+    ports:
+      - 3866:3000
+    volumes:
+      - /volume1/docker/dockhand:/app/data:rw
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: always
+```
+
+4. Access Dockhand at `http://your-nas-ip:3866`
+
+### Add GitHub Registry
+
+1. In Dockhand → **Settings** → **Registries**
+2. Click **+ Add registry**
+3. Name: `GitHub`, URL: `https://ghcr.io`
+4. Click **+ Add**
+
+### Deploy kdo-vtg
+
+1. Go to **Stacks** → **+ Create**
+2. Name: `kdo-vtg`
+3. Create folder `/volume1/docker/kdo-vtg/` via Files app
+4. Paste and deploy:
 
 ```yaml
 services:
   kdo-vtg:
-    build: .
+    image: ghcr.io/omrik/kdo-vtg:latest
     container_name: kdo-vtg
     ports:
       - "8080:8000"
     volumes:
-      - ./config:/app/config:rw
+      - kdo_vtg_config:/app/config
       - /volume1/media:/media:ro
     environment:
       - TZ=Europe/Bucharest
       - PUID=1000
       - PGID=100
     restart: unless-stopped
+
+volumes:
+  kdo_vtg_config:
 ```
 
-4. Create the folders via **Files** app:
-   ```
-   /volume1/docker/kdo-vtg/config/
-   ```
+### Prepare Video Folder
 
-5. Access the app at: `http://your-nas-ip:8080`
+1. Open **Files** app
+2. Create folder `/volume1/media/`
+3. Copy your video files there
 
-### Direct SSH Setup
+### Access the App
 
-```bash
-# SSH into your NAS
-ssh user@your-nas-ip
+Open `http://your-nas-ip:8080`
 
-# Create directories
-mkdir -p /volume1/docker/kdo-vtg/config
+## Updating
 
-# Navigate to the folder
-cd /volume1/docker/kdo-vtg
+Since Dockhand already has the GitHub registry configured, updates are automatic. To manually update:
 
-# Clone and run
-git clone https://github.com/omrik/kdo-vtg.git .
-docker compose up -d
-```
-
-## Adding to Dockhand (After Initial Setup)
-
-If you already have Dockhand installed:
-
-1. Open **Dockhand** at `http://your-nas-ip:3866`
-2. Go to **Stacks** → **+ Create**
-3. Name: `kdo-vtg`
-4. Create folder `kdo-vtg` in Files app
-5. Paste the compose and click **Create & Start**
-
-## Accessing the App
-
-Open your browser: `http://your-nas-ip:8080`
+1. In Dockhand → **Containers**
+2. Find `kdo-vtg`
+3. Click **Redeploy** or **Rebuild**
