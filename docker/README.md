@@ -2,21 +2,42 @@
 
 ## Quick Setup for UGREEN NAS
 
-### Using Portainer
+This guide uses **Dockhand**, a modern Docker management platform for UGREEN NAS.
 
-1. Install **Portainer** on your UGREEN NAS via the App Center
-2. Create the following folder structure in your Docker shared folder:
+### Using Dockhand (Recommended)
+
+1. Install **Docker** from UGREEN App Center
+
+2. Open **Docker** app → **Project** → **Create**
+   - Name: `kdo-vtg`
+   - Create folder: `kdo-vtg`
+   - Select the folder → **Confirm**
+
+3. Paste the compose configuration and **Deploy**:
+
+```yaml
+services:
+  kdo-vtg:
+    build: .
+    container_name: kdo-vtg
+    ports:
+      - "8080:8000"
+    volumes:
+      - ./config:/app/config:rw
+      - /volume1/media:/media:ro
+    environment:
+      - TZ=Europe/Bucharest
+      - PUID=1000
+      - PGID=100
+    restart: unless-stopped
+```
+
+4. Create the folders via **Files** app:
    ```
-   /volume1/docker/kdo-vtg/
-   ├── config/
-   └── media/ (mount your video folders here)
+   /volume1/docker/kdo-vtg/config/
    ```
 
-3. In Portainer, go to **Stacks** → **Add stack**
-4. Name it `kdo-vtg`
-5. Paste the docker-compose.yml content below
-6. Update `PUID` and `PGID` values (find them using `id` command via SSH)
-7. Click **Deploy the stack**
+5. Access the app at: `http://your-nas-ip:8080`
 
 ### Direct SSH Setup
 
@@ -26,16 +47,25 @@ ssh user@your-nas-ip
 
 # Create directories
 mkdir -p /volume1/docker/kdo-vtg/config
-mkdir -p /volume1/docker/kdo-vtg/media
 
 # Navigate to the folder
 cd /volume1/docker/kdo-vtg
 
-# Create docker-compose.yml (or copy from this repo)
-# Then run:
-sudo docker compose up -d
+# Clone and run
+git clone https://github.com/omrik/kdo-vtg.git .
+docker compose up -d
 ```
+
+## Adding to Dockhand (After Initial Setup)
+
+If you already have Dockhand installed:
+
+1. Open **Dockhand** at `http://your-nas-ip:3866`
+2. Go to **Stacks** → **+ Create**
+3. Name: `kdo-vtg`
+4. Create folder `kdo-vtg` in Files app
+5. Paste the compose and click **Create & Start**
 
 ## Accessing the App
 
-Open your browser and navigate to: `http://your-nas-ip:8080`
+Open your browser: `http://your-nas-ip:8080`

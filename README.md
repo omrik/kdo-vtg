@@ -12,7 +12,7 @@
 - **Folder Browsing** - Navigate NAS folders directly from the UI
 - **Progress Tracking** - Real-time scan progress with cancel support
 - **Export** - Download results as CSV or Excel files
-- **NAS Optimized** - Designed for UGREEN NAS with Portainer support
+- **NAS Optimized** - Designed for UGREEN NAS with Dockhand support
 
 ## Hardware Requirements
 
@@ -29,28 +29,30 @@
 ssh user@your-ugreen-nas
 
 # Create directories
-mkdir -p /volume1/docker/kdo-video/config
+mkdir -p /volume1/docker/kdo-vtg/config
 mkdir -p /volume1/media
 
 # Copy your videos to /volume1/media or create subfolders
 ```
 
-### 2. Deploy with Portainer
+### 2. Deploy with Dockhand
 
-1. Install **Portainer** from UGREEN App Center
-2. Go to **Stacks** → **Add stack**
-3. Name: `kdo-vtg`
-4. Paste the docker-compose.yml:
+1. Install **Docker** from UGREEN App Center
+2. Open **Docker** → **Project** → **Create**
+   - Name: `kdo-vtg`
+   - Create folder: `kdo-vtg`
+   - Select folder → **Confirm**
+3. Paste the compose and click **Deploy**:
 
 ```yaml
 services:
   kdo-vtg:
-    image: ghcr.io/omrik/kdo-vtg:latest
+    build: .
     container_name: kdo-vtg
     ports:
       - "8080:8000"
     volumes:
-      - /volume1/docker/kdo-vtg/config:/app/config:rw
+      - ./config:/app/config:rw
       - /volume1/media:/media:ro
     environment:
       - TZ=Europe/Bucharest
@@ -59,7 +61,7 @@ services:
     restart: unless-stopped
 ```
 
-5. Click **Deploy the stack**
+4. Create folder `/volume1/docker/kdo-vtg/config/` via Files app
 
 ### 3. Access the App
 
@@ -104,7 +106,7 @@ Open `http://your-nas-ip:8080` in your browser.
 | `TZ` | Timezone | UTC |
 | `PUID` | User ID for file permissions | 1000 |
 | `PGID` | Group ID for file permissions | 100 |
-| `DATABASE_URL` | SQLite database path | `sqlite:///./config/kdo-video.db` |
+| `DATABASE_URL` | SQLite database path | `sqlite:///./config/kdo-vtg.db` |
 
 ### YOLO Model Options
 
@@ -148,7 +150,7 @@ docker run -d \
   -p 8080:8000 \
   -v $(pwd)/config:/app/config \
   -v /path/to/videos:/media:ro \
-  kdo-video
+  kdo-vtg
 ```
 
 ## Development
@@ -172,7 +174,7 @@ npm run dev
 - **Metadata**: FFprobe (FFmpeg)
 - **Object Detection**: Ultralytics YOLOv8
 - **Export**: openpyxl (Excel), Python csv
-- **Deployment**: Docker, Portainer-ready
+- **Deployment**: Docker, Dockhand-ready
 
 ## License
 
