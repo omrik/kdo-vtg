@@ -5,8 +5,12 @@ FROM python:3.12-alpine
 
 WORKDIR /app
 
-# Install only essential dependencies
-RUN apk add --no-cache ffmpeg
+# Install ffmpeg and opencv dependencies for Alpine
+RUN apk add --no-cache \
+    ffmpeg \
+    libgl \
+    libblas \
+    lapack
 
 # Install Python packages
 RUN pip install --no-cache-dir \
@@ -14,7 +18,8 @@ RUN pip install --no-cache-dir \
     uvicorn \
     sqlalchemy \
     ffmpeg-python \
-    python-multipart
+    python-multipart \
+    opencv-python-headless
 
 # Copy backend
 COPY backend/ ./backend/
