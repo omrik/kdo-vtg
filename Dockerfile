@@ -13,13 +13,19 @@ FROM python:3.12-slim
 WORKDIR /app
 
 # Install system dependencies for ffprobe and OpenCV
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender1 \
+# Use fixed mirrors and include ca-certificates
+RUN sed -i 's/deb.debian.org/archive.debian.org/g' /etc/apt/sources.list.d/debian.sources \
+    && sed -i 's/security.debian.org/archive.debian.org/g' /etc/apt/sources.list.d/debian.sources \
+    && sed -i '/jessie-updates/d' /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        ffmpeg \
+        libgl1 \
+        libglib2.0-0 \
+        libsm6 \
+        libxext6 \
+        libxrender1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy backend files
