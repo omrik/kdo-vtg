@@ -33,8 +33,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY backend/ ./backend/
 COPY pyproject.toml ./
 
-# Install Python dependencies using pip
-RUN pip install --no-cache-dir --break-system-packages -e .
+# Create requirements.txt for simpler pip install
+RUN grep -A 20 "dependencies" pyproject.toml | grep -v "dependencies" | tr -d ',"' > requirements.txt || true
+
+# Install dependencies directly (not editable)
+RUN pip install --no-cache-dir --break-system-packages \
+    fastapi uvicorn sqlalchemy ffmpeg-python ultralytics opencv-python-headless supervision python-multipart openpyxl
 
 # Copy frontend build
 COPY --from=frontend-build /app/dist ./static
@@ -47,6 +51,7 @@ ENV PYTHONUNBUFFERED=1
 ENV HOST=0.0.0.0
 ENV PORT=8000
 ENV DATABASE_URL=sqlite:///./config/kdo-vtg.db
+ENV PYTHONPATH=/app
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
