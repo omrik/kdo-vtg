@@ -8,18 +8,15 @@ COPY frontend/ ./
 RUN npm run build
 
 # Stage 2: Production
-FROM python:3.12-slim
+FROM debian:bookworm-slim
 
 WORKDIR /app
 
-# Install system dependencies for ffprobe and OpenCV
-# Use fixed mirrors and include ca-certificates
-RUN sed -i 's/deb.debian.org/archive.debian.org/g' /etc/apt/sources.list.d/debian.sources \
-    && sed -i 's/security.debian.org/archive.debian.org/g' /etc/apt/sources.list.d/debian.sources \
-    && sed -i '/jessie-updates/d' /etc/apt/sources.list.d/debian.sources \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends \
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
+        gnupg \
+        curl \
         ffmpeg \
         libgl1 \
         libglib2.0-0 \
