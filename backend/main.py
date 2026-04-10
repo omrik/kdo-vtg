@@ -8,6 +8,7 @@ from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse, FileResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from pydantic import BaseModel
 
 from backend.database import init_db, get_db, Video, ScanJob, Folder, Settings
@@ -348,15 +349,13 @@ def export_excel(
 @app.get("/api/stats")
 def get_stats(db: Session = Depends(get_db)):
     total_videos = db.query(Video).count()
-    total_duration = db.query(Video).with_entities(
-        db.func.sum(Video.duration)
-    ).scalar() or 0
+    total_duration = db.query(func.sum(Video.duration)).scalar() or 0
     
-    resolutions = db.query(Video.resolution, db.func.count(Video.id)).group_by(
+    resolutions = db.query(Video.resolution, func.count(Video.id)).group_by(
         Video.resolution
     ).all()
     
-    cameras = db.query(Video.camera_type, db.func.count(Video.id)).group_by(
+    cameras = db.query(Video.camera_type, func.count(Video.id)).group_by(
         Video.camera_type
     ).all()
     
