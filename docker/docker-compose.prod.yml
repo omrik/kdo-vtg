@@ -1,0 +1,23 @@
+services:
+  kdo-video:
+    image: ghcr.io/omrik/kdo-video:latest
+    container_name: kdo-video
+    hostname: kdo-video
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    ports:
+      - "8080:8000"
+    volumes:
+      - /path/to/config:/app/config:rw
+      - /path/to/videos:/media:ro
+    environment:
+      - TZ=Europe/Bucharest
+      - PUID=1000
+      - PGID=100
+    restart: unless-stopped

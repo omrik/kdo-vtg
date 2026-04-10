@@ -1,0 +1,28 @@
+services:
+  kdo-video:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: kdo-video
+    hostname: kdo-video
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    ports:
+      - "8080:8000"
+    volumes:
+      - ../config:/app/config:rw
+      - /volume1/media:/media:ro
+    environment:
+      - TZ=Europe/Bucharest
+      - PUID=1000
+      - PGID=100
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DATABASE_URL=sqlite:///./config/kdo-video.db
+    restart: unless-stopped
