@@ -1,7 +1,7 @@
 services:
-  kdo-video:
+  kdo-vtg:
     build: .
-    container_name: kdo-video-tagger
+    container_name: kdo-vtg
     volumes:
       - ./videos:/videos:ro
       - ./output:/output

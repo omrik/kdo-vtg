@@ -39,18 +39,18 @@ mkdir -p /volume1/media
 
 1. Install **Portainer** from UGREEN App Center
 2. Go to **Stacks** → **Add stack**
-3. Name: `kdo-video`
+3. Name: `kdo-vtg`
 4. Paste the docker-compose.yml:
 
 ```yaml
 services:
-  kdo-video:
-    image: ghcr.io/omrik/kdo-video:latest
-    container_name: kdo-video
+  kdo-vtg:
+    image: ghcr.io/omrik/kdo-vtg:latest
+    container_name: kdo-vtg
     ports:
       - "8080:8000"
     volumes:
-      - /volume1/docker/kdo-video/config:/app/config:rw
+      - /volume1/docker/kdo-vtg/config:/app/config:rw
       - /volume1/media:/media:ro
     environment:
       - TZ=Europe/Bucharest
@@ -140,11 +140,11 @@ git clone https://github.com/omrik/kdo-vtg.git
 cd kdo-vtg
 
 # Build the Docker image
-docker build -t kdo-video .
+docker build -t kdo-vtg .
 
 # Run
 docker run -d \
-  --name kdo-video \
+  --name kdo-vtg \
   -p 8080:8000 \
   -v $(pwd)/config:/app/config \
   -v /path/to/videos:/media:ro \

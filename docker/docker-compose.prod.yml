@@ -1,8 +1,8 @@
 services:
-  kdo-video:
-    image: ghcr.io/omrik/kdo-video:latest
-    container_name: kdo-video
-    hostname: kdo-video
+  kdo-vtg:
+    image: ghcr.io/omrik/kdo-vtg:latest
+    container_name: kdo-vtg
+    hostname: kdo-vtg
     security_opt:
       - no-new-privileges:true
     healthcheck:

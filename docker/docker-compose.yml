@@ -1,10 +1,10 @@
 services:
-  kdo-video:
+  kdo-vtg:
     build:
       context: ..
       dockerfile: Dockerfile
-    container_name: kdo-video
-    hostname: kdo-video
+    container_name: kdo-vtg
+    hostname: kdo-vtg
     security_opt:
       - no-new-privileges:true
     healthcheck:
@@ -24,5 +24,5 @@ services:
       - PGID=100
       - HOST=0.0.0.0
       - PORT=8000
-      - DATABASE_URL=sqlite:///./config/kdo-video.db
+      - DATABASE_URL=sqlite:///./config/kdo-vtg.db
     restart: unless-stopped
