@@ -386,25 +386,20 @@ function App() {
                     {contents.map((item) => (
                       <div
                         key={item.path}
-                        className={`folder-card ${item.type === 'folder' ? '' : 'selected'}`}
+                        className={`folder-card ${selectedFolder === item.path ? 'selected' : ''}`}
                         onClick={() => {
                           if (item.type === 'folder') {
-                            navigateToFolder(item.path)
+                            setSelectedFolder(item.path)
+                            setActiveTab('scan')
                           }
                         }}
                       >
                         <div className="folder-name">
-                          {item.type === 'folder' ? (
-                            <FolderOpen size={20} />
-                          ) : (
-                            <FileVideo size={20} />
-                          )}
+                          <FolderOpen size={20} />
                           {item.name}
                         </div>
                         <div className="folder-info">
-                          {item.type === 'folder'
-                            ? `${item.video_count || 0} videos`
-                            : formatFileSize(item.size || 0)}
+                          {item.video_count || 0} videos
                         </div>
                       </div>
                     ))}
