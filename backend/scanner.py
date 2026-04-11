@@ -171,25 +171,43 @@ class VideoScanner:
         date_created = self.extract_date_from_filename(filename)
         tags = self.detect_objects_yolo(filepath)
 
-        video = Video(
-            filename=filename,
-            filepath=filepath,
-            resolution=metadata.get("resolution"),
-            width=metadata.get("width"),
-            height=metadata.get("height"),
-            duration=metadata.get("duration"),
-            fps=metadata.get("fps"),
-            codec=metadata.get("codec"),
-            bitrate=metadata.get("bitrate"),
-            file_size=metadata.get("file_size"),
-            camera_type=camera_type,
-            date_created=date_created,
-            tags=list(tags) if tags else [],
-            yolo_enabled=self.yolo_enabled,
-            scan_id=self.scan_job.id,
-        )
+        existing = self.db.query(Video).filter(Video.filepath == filepath).first()
+        
+        if existing:
+            existing.resolution = metadata.get("resolution")
+            existing.width = metadata.get("width")
+            existing.height = metadata.get("height")
+            existing.duration = metadata.get("duration")
+            existing.fps = metadata.get("fps")
+            existing.codec = metadata.get("codec")
+            existing.bitrate = metadata.get("bitrate")
+            existing.file_size = metadata.get("file_size")
+            existing.camera_type = camera_type
+            existing.date_created = date_created
+            existing.tags = list(tags) if tags else existing.tags
+            existing.yolo_enabled = self.yolo_enabled
+            existing.scan_id = self.scan_job.id
+            video = existing
+        else:
+            video = Video(
+                filename=filename,
+                filepath=filepath,
+                resolution=metadata.get("resolution"),
+                width=metadata.get("width"),
+                height=metadata.get("height"),
+                duration=metadata.get("duration"),
+                fps=metadata.get("fps"),
+                codec=metadata.get("codec"),
+                bitrate=metadata.get("bitrate"),
+                file_size=metadata.get("file_size"),
+                camera_type=camera_type,
+                date_created=date_created,
+                tags=list(tags) if tags else [],
+                yolo_enabled=self.yolo_enabled,
+                scan_id=self.scan_job.id,
+            )
+            self.db.add(video)
 
-        self.db.add(video)
         self.db.commit()
         self.db.refresh(video)
         
