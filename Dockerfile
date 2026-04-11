@@ -22,15 +22,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrender1 \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Python dependencies
+RUN pip install --no-cache-dir --break-system-packages \
+    fastapi \
+    uvicorn \
+    sqlalchemy \
+    ffmpeg-python \
+    python-multipart \
+    opencv-python-headless \
+    python-jose[cryptography] \
+    passlib[bcrypt]
+
 # Copy backend files
 COPY backend/ ./backend/
-COPY pyproject.toml ./
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -e .
-
-# Copy frontend build
-COPY --from=frontend-build /app/dist ./static
+# Copy pre-built frontend (run npm run build in frontend/ first)
+COPY frontend/dist/ ./static/
 
 # Create directories
 RUN mkdir -p /app/config /app/media
@@ -40,6 +47,7 @@ ENV PYTHONUNBUFFERED=1
 ENV HOST=0.0.0.0
 ENV PORT=8000
 ENV DATABASE_URL=sqlite:///./config/kdo-vtg.db
+ENV JWT_SECRET=change-this-in-production
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \

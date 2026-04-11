@@ -1,18 +1,44 @@
 import os
 import threading
 from contextlib import asynccontextmanager
-from typing import Optional
+from typing import Optional, List
 from pathlib import Path
 
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Query
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Query, status
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response, JSONResponse
-from sqlalchemy.orm import Session
+from fastapi.responses import Response, JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
+from sqlalchemy.orm import Session, relationship
+from sqlalchemy import func
 from pydantic import BaseModel
 
-from backend.database import init_db, get_db, Video, ScanJob, Folder, Settings
+from backend.database import (
+    init_db, get_db, Video, ScanJob, Folder, Settings, 
+    User, Collection, Project, collection_videos, project_videos
+)
 from backend.scanner import VideoScanner, cancel_scan
 from backend.export import videos_to_csv, videos_to_excel, get_latest_scan
+from backend.auth import (
+    verify_password, get_password_hash, create_access_token,
+    get_current_user_optional, get_current_user
+)
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+    email: Optional[str] = None
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: dict
 
 
 class ScanRequest(BaseModel):
@@ -20,13 +46,6 @@ class ScanRequest(BaseModel):
     yolo_enabled: bool = False
     sample_interval: int = 10
     model_name: str = "yolov8n.pt"
-
-
-class SettingsUpdate(BaseModel):
-    default_yolo_enabled: bool = False
-    default_sample_interval: int = 10
-    default_model: str = "yolov8n.pt"
-    media_root: str = "/media"
 
 
 class VideoResponse(BaseModel):
@@ -68,23 +87,40 @@ class ScanJobResponse(BaseModel):
         from_attributes = True
 
 
-def scan_task(db_url: str, scan_id: int, folder_path: str, yolo_enabled: bool, sample_interval: int, model_name: str):
-    from backend.database import SessionLocal
-    
-    db = SessionLocal()
-    try:
-        scan_job = db.query(ScanJob).filter(ScanJob.id == scan_id).first()
-        if scan_job:
-            scanner = VideoScanner(
-                db=db,
-                scan_job=scan_job,
-                yolo_enabled=yolo_enabled,
-                sample_interval=sample_interval,
-                model_name=model_name
-            )
-            scanner.scan_folder(folder_path)
-    finally:
-        db.close()
+class CollectionCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    color: Optional[str] = "#58a6ff"
+
+
+class CollectionResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str]
+    color: str
+    video_count: int = 0
+    created_at: str
+
+    class Config:
+        from_attributes = True
+
+
+class ProjectCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    status: Optional[str] = "active"
+
+
+class ProjectResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str]
+    status: str
+    video_count: int = 0
+    created_at: str
+
+    class Config:
+        from_attributes = True
 
 
 @asynccontextmanager
@@ -109,10 +145,65 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+static_path = Path(__file__).parent.parent / "static"
+if static_path.exists():
+    app.mount("/assets", StaticFiles(directory=str(static_path / "assets")), name="assets")
+
+
+@app.get("/")
+async def root():
+    index_path = Path(__file__).parent.parent / "static" / "index.html"
+    if index_path.exists():
+        return FileResponse(str(index_path))
+    return {"message": "KDO Video Tagger API"}
+
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "healthy", "service": "kdo-video"}
+    return {"status": "healthy", "service": "kdo-vtg"}
+
+
+@app.post("/api/auth/register", response_model=TokenResponse)
+def register(request: RegisterRequest, db: Session = Depends(get_db)):
+    existing = db.query(User).filter(User.username == request.username).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Username already exists")
+    
+    user = User(
+        username=request.username,
+        email=request.email,
+        hashed_password=get_password_hash(request.password),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    
+    token = create_access_token({"sub": user.username, "user_id": user.id})
+    return TokenResponse(
+        access_token=token,
+        user={"id": user.id, "username": user.username, "is_admin": user.is_admin}
+    )
+
+
+@app.post("/api/auth/login", response_model=TokenResponse)
+def login(request: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.username == request.username).first()
+    if not user or not verify_password(request.password, user.hashed_password):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    token = create_access_token({"sub": user.username, "user_id": user.id})
+    return TokenResponse(
+        access_token=token,
+        user={"id": user.id, "username": user.username, "is_admin": user.is_admin}
+    )
+
+
+@app.get("/api/auth/me")
+def get_me(user: dict = Depends(get_current_user), db: Session = Depends(get_db)):
+    db_user = db.query(User).filter(User.id == user.get("user_id")).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"id": db_user.id, "username": db_user.username, "is_admin": db_user.is_admin}
 
 
 @app.get("/api/folders")
@@ -139,10 +230,7 @@ def list_folders(
 
 
 @app.get("/api/folders/{path:path}")
-def get_folder_contents(
-    path: str,
-    db: Session = Depends(get_db),
-):
+def get_folder_contents(path: str, db: Session = Depends(get_db)):
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Folder not found")
     
@@ -168,7 +256,7 @@ def get_folder_contents(
                 "type": "video",
                 "size": size,
             })
-    
+
     contents.sort(key=lambda x: (x["type"] == "folder", x["name"]))
     return {"contents": contents}
 
@@ -219,11 +307,27 @@ def start_scan(
     }
 
 
+def scan_task(db_url: str, scan_id: int, folder_path: str, yolo_enabled: bool, sample_interval: int, model_name: str):
+    from backend.database import SessionLocal
+    
+    db = SessionLocal()
+    try:
+        scan_job = db.query(ScanJob).filter(ScanJob.id == scan_id).first()
+        if scan_job:
+            scanner = VideoScanner(
+                db=db,
+                scan_job=scan_job,
+                yolo_enabled=yolo_enabled,
+                sample_interval=sample_interval,
+                model_name=model_name
+            )
+            scanner.scan_folder(folder_path)
+    finally:
+        db.close()
+
+
 @app.get("/api/scan/{scan_id}")
-def get_scan_status(
-    scan_id: int,
-    db: Session = Depends(get_db),
-):
+def get_scan_status(scan_id: int, db: Session = Depends(get_db)):
     scan = db.query(ScanJob).filter(ScanJob.id == scan_id).first()
     if not scan:
         raise HTTPException(status_code=404, detail="Scan not found")
@@ -248,10 +352,7 @@ def get_scan_status(
 
 
 @app.post("/api/scan/{scan_id}/cancel")
-def cancel_scan_job(
-    scan_id: int,
-    db: Session = Depends(get_db),
-):
+def cancel_scan_job(scan_id: int, db: Session = Depends(get_db)):
     cancel_scan(db, scan_id)
     return {"status": "cancelled"}
 
@@ -259,6 +360,9 @@ def cancel_scan_job(
 @app.get("/api/videos")
 def list_videos(
     folder_path: Optional[str] = None,
+    collection_id: Optional[int] = None,
+    project_id: Optional[int] = None,
+    favorites_only: Optional[bool] = False,
     limit: int = Query(100, le=1000),
     offset: int = 0,
     db: Session = Depends(get_db),
@@ -299,11 +403,28 @@ def list_videos(
     }
 
 
+@app.post("/api/videos/{video_id}/favorite")
+def toggle_favorite(video_id: int, db: Session = Depends(get_db)):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    if not hasattr(video, 'is_favorite'):
+        video.tags = video.tags or {}
+        if isinstance(video.tags, list):
+            video.tags = {"custom_tags": video.tags}
+    
+    if isinstance(video.tags, dict):
+        video.tags['is_favorite'] = not video.tags.get('is_favorite', False)
+    else:
+        video.tags = {"is_favorite": True}
+    
+    db.commit()
+    return {"is_favorite": video.tags.get('is_favorite', False) if isinstance(video.tags, dict) else True}
+
+
 @app.get("/api/videos/export/csv")
-def export_csv(
-    folder_path: Optional[str] = None,
-    db: Session = Depends(get_db),
-):
+def export_csv(folder_path: Optional[str] = None, db: Session = Depends(get_db)):
     query = db.query(Video)
     if folder_path:
         query = query.filter(Video.filepath.startswith(folder_path))
@@ -314,15 +435,12 @@ def export_csv(
     return Response(
         content=csv_content,
         media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=kdo-video-export.csv"},
+        headers={"Content-Disposition": "attachment; filename=kdo-vtg-export.csv"},
     )
 
 
 @app.get("/api/videos/export/excel")
-def export_excel(
-    folder_path: Optional[str] = None,
-    db: Session = Depends(get_db),
-):
+def export_excel(folder_path: Optional[str] = None, db: Session = Depends(get_db)):
     query = db.query(Video)
     if folder_path:
         query = query.filter(Video.filepath.startswith(folder_path))
@@ -333,22 +451,20 @@ def export_excel(
     return Response(
         content=excel_content,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=kdo-video-export.xlsx"},
+        headers={"Content-Disposition": "attachment; filename=kdo-vtg-export.xlsx"},
     )
 
 
 @app.get("/api/stats")
 def get_stats(db: Session = Depends(get_db)):
     total_videos = db.query(Video).count()
-    total_duration = db.query(Video).with_entities(
-        db.func.sum(Video.duration)
-    ).scalar() or 0
+    total_duration = db.query(func.sum(Video.duration)).scalar() or 0
     
-    resolutions = db.query(Video.resolution, db.func.count(Video.id)).group_by(
+    resolutions = db.query(Video.resolution, func.count(Video.id)).group_by(
         Video.resolution
     ).all()
     
-    cameras = db.query(Video.camera_type, db.func.count(Video.id)).group_by(
+    cameras = db.query(Video.camera_type, func.count(Video.id)).group_by(
         Video.camera_type
     ).all()
     
@@ -356,7 +472,10 @@ def get_stats(db: Session = Depends(get_db)):
     videos_with_tags = db.query(Video).filter(Video.tags.isnot(None)).all()
     for v in videos_with_tags:
         if v.tags:
-            all_tags.extend(v.tags)
+            if isinstance(v.tags, list):
+                all_tags.extend(v.tags)
+            elif isinstance(v.tags, dict) and 'custom_tags' in v.tags:
+                all_tags.extend(v.tags['custom_tags'])
     
     tag_counts = {}
     for tag in all_tags:
@@ -372,10 +491,7 @@ def get_stats(db: Session = Depends(get_db)):
 
 
 @app.delete("/api/videos")
-def delete_videos(
-    folder_path: Optional[str] = None,
-    db: Session = Depends(get_db),
-):
+def delete_videos(folder_path: Optional[str] = None, db: Session = Depends(get_db)):
     query = db.query(Video)
     if folder_path:
         query = query.filter(Video.filepath.startswith(folder_path))
@@ -384,6 +500,184 @@ def delete_videos(
     db.commit()
     
     return {"deleted": count}
+
+
+@app.get("/api/collections")
+def list_collections(db: Session = Depends(get_db)):
+    collections = db.query(Collection).all()
+    result = []
+    for c in collections:
+        video_count = db.query(collection_videos).filter(
+            collection_videos.c.collection_id == c.id
+        ).count()
+        result.append(CollectionResponse(
+            id=c.id,
+            name=c.name,
+            description=c.description,
+            color=c.color,
+            video_count=video_count,
+            created_at=c.created_at.isoformat() if c.created_at else "",
+        ))
+    return {"collections": result}
+
+
+@app.post("/api/collections")
+def create_collection(request: CollectionCreate, db: Session = Depends(get_db)):
+    collection = Collection(
+        name=request.name,
+        description=request.description,
+        color=request.color,
+    )
+    db.add(collection)
+    db.commit()
+    db.refresh(collection)
+    return CollectionResponse(
+        id=collection.id,
+        name=collection.name,
+        description=collection.description,
+        color=collection.color,
+        video_count=0,
+        created_at=collection.created_at.isoformat() if collection.created_at else "",
+    )
+
+
+@app.post("/api/collections/{collection_id}/videos/{video_id}")
+def add_video_to_collection(collection_id: int, video_id: int, db: Session = Depends(get_db)):
+    collection = db.query(Collection).filter(Collection.id == collection_id).first()
+    if not collection:
+        raise HTTPException(status_code=404, detail="Collection not found")
+    
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    existing = db.query(collection_videos).filter(
+        collection_videos.c.collection_id == collection_id,
+        collection_videos.c.video_id == video_id
+    ).first()
+    
+    if not existing:
+        db.execute(collection_videos.insert().values(
+            collection_id=collection_id,
+            video_id=video_id
+        ))
+        db.commit()
+    
+    return {"status": "added"}
+
+
+@app.delete("/api/collections/{collection_id}/videos/{video_id}")
+def remove_video_from_collection(collection_id: int, video_id: int, db: Session = Depends(get_db)):
+    db.execute(collection_videos.delete().where(
+        collection_videos.c.collection_id == collection_id,
+        collection_videos.c.video_id == video_id
+    ))
+    db.commit()
+    return {"status": "removed"}
+
+
+@app.delete("/api/collections/{collection_id}")
+def delete_collection(collection_id: int, db: Session = Depends(get_db)):
+    collection = db.query(Collection).filter(Collection.id == collection_id).first()
+    if not collection:
+        raise HTTPException(status_code=404, detail="Collection not found")
+    
+    db.execute(collection_videos.delete().where(
+        collection_videos.c.collection_id == collection_id
+    ))
+    db.delete(collection)
+    db.commit()
+    
+    return {"status": "deleted"}
+
+
+@app.get("/api/projects")
+def list_projects(db: Session = Depends(get_db)):
+    projects = db.query(Project).all()
+    result = []
+    for p in projects:
+        video_count = db.query(project_videos).filter(
+            project_videos.c.project_id == p.id
+        ).count()
+        result.append(ProjectResponse(
+            id=p.id,
+            name=p.name,
+            description=p.description,
+            status=p.status,
+            video_count=video_count,
+            created_at=p.created_at.isoformat() if p.created_at else "",
+        ))
+    return {"projects": result}
+
+
+@app.post("/api/projects")
+def create_project(request: ProjectCreate, db: Session = Depends(get_db)):
+    project = Project(
+        name=request.name,
+        description=request.description,
+        status=request.status,
+    )
+    db.add(project)
+    db.commit()
+    db.refresh(project)
+    return ProjectResponse(
+        id=project.id,
+        name=project.name,
+        description=project.description,
+        status=project.status,
+        video_count=0,
+        created_at=project.created_at.isoformat() if project.created_at else "",
+    )
+
+
+@app.post("/api/projects/{project_id}/videos/{video_id}")
+def add_video_to_project(project_id: int, video_id: int, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    existing = db.query(project_videos).filter(
+        project_videos.c.project_id == project_id,
+        project_videos.c.video_id == video_id
+    ).first()
+    
+    if not existing:
+        db.execute(project_videos.insert().values(
+            project_id=project_id,
+            video_id=video_id
+        ))
+        db.commit()
+    
+    return {"status": "added"}
+
+
+@app.delete("/api/projects/{project_id}/videos/{video_id}")
+def remove_video_from_project(project_id: int, video_id: int, db: Session = Depends(get_db)):
+    db.execute(project_videos.delete().where(
+        project_videos.c.project_id == project_id,
+        project_videos.c.video_id == video_id
+    ))
+    db.commit()
+    return {"status": "removed"}
+
+
+@app.delete("/api/projects/{project_id}")
+def delete_project(project_id: int, db: Session = Depends(get_db)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    db.execute(project_videos.delete().where(
+        project_videos.c.project_id == project_id
+    ))
+    db.delete(project)
+    db.commit()
+    
+    return {"status": "deleted"}
 
 
 if __name__ == "__main__":

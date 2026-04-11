@@ -1,14 +1,26 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, JSON
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, JSON, Table, ForeignKey
 from datetime import datetime
 import os
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./config/kdo-video.db")
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///./config/kdo-vtg.db")
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, nullable=False, index=True)
+    email = Column(String, unique=True, nullable=True)
+    hashed_password = Column(String, nullable=False)
+    is_active = Column(Boolean, default=True)
+    is_admin = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 
 class Video(Base):
@@ -68,6 +80,45 @@ class Settings(Base):
     id = Column(Integer, primary_key=True, index=True)
     key = Column(String, unique=True, nullable=False)
     value = Column(String, nullable=True)
+
+
+class Collection(Base):
+    __tablename__ = "collections"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    color = Column(String, default="#58a6ff")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Project(Base):
+    __tablename__ = "projects"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    description = Column(String, nullable=True)
+    status = Column(String, default="active")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+collection_videos = Table(
+    'collection_videos',
+    Base.metadata,
+    Column('collection_id', Integer, ForeignKey('collections.id'), primary_key=True),
+    Column('video_id', Integer, ForeignKey('videos.id'), primary_key=True),
+    Column('added_at', DateTime, default=datetime.utcnow)
+)
+
+project_videos = Table(
+    'project_videos',
+    Base.metadata,
+    Column('project_id', Integer, ForeignKey('projects.id'), primary_key=True),
+    Column('video_id', Integer, ForeignKey('videos.id'), primary_key=True),
+    Column('added_at', DateTime, default=datetime.utcnow)
+)
 
 
 def init_db():
