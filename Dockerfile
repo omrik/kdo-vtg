@@ -19,7 +19,8 @@ RUN pip install --no-cache-dir --break-system-packages \
     python-multipart \
     opencv-python-headless \
     python-jose[cryptography] \
-    passlib[bcrypt]
+    passlib==1.7.4 \
+    bcrypt==4.0.1
 
 COPY backend/ ./backend/
 
