@@ -394,12 +394,33 @@ def cancel_scan_job(
 @app.get("/api/videos")
 def get_videos(
     folder_path: Optional[str] = None,
+    resolution: Optional[str] = Query(None, description="Filter by resolution (e.g., 3840x2160)"),
+    camera_type: Optional[str] = Query(None, description="Filter by camera type (e.g., DJI)"),
+    min_duration: Optional[float] = Query(None, description="Minimum duration in seconds"),
+    max_duration: Optional[float] = Query(None, description="Maximum duration in seconds"),
+    search: Optional[str] = Query(None, description="Search in filename"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     query = db.query(Video)
+    
     if folder_path:
         query = query.filter(Video.filepath.startswith(folder_path))
+    
+    if resolution:
+        query = query.filter(Video.resolution == resolution)
+    
+    if camera_type:
+        query = query.filter(Video.camera_type == camera_type)
+    
+    if min_duration is not None:
+        query = query.filter(Video.duration >= min_duration)
+    
+    if max_duration is not None:
+        query = query.filter(Video.duration <= max_duration)
+    
+    if search:
+        query = query.filter(Video.filename.contains(search))
     
     videos = query.order_by(Video.created_at.desc()).all()
     

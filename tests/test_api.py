@@ -115,6 +115,12 @@ class TestVideos:
         data = response.json()
         assert "videos" in data
 
+    def test_get_videos_with_filters(self, client, auth):
+        response = client.get("/api/videos?camera_type=DJI", headers=auth)
+        assert response.status_code == 200
+        data = response.json()
+        assert "videos" in data
+
     def test_get_stats(self, client, auth):
         response = client.get("/api/stats", headers=auth)
         assert response.status_code == 200
