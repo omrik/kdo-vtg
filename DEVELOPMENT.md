@@ -9,14 +9,14 @@
 │                    Development Flow                           │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  Local Development → GitHub → Docker Hub → NAS (Dockhand)   │
+│  Local Development → GitHub → Container Registry → Target    │
 │         ↓                                    ↓              │
-│    localhost:8080                         kedemstorage:8080 │
+│    localhost:8080                    NAS (Docker) or PC/Mac  │
 │                                                             │
 │  Testing:                                                   │
-│  1. Local Docker (this machine)                           │
-│  2. NAS Docker via SSH (fallback)                         │
-│  3. Dockhand UI (production-like)                         │
+│  1. Local Dev (npm/uvicorn)                               │
+│  2. Local Docker (PC/Mac/NAS)                             │
+│  3. Dockhand UI (NAS production)                           │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -26,9 +26,23 @@
 | Stage | Environment | When | Purpose |
 |-------|-------------|------|---------|
 | **1. Local Dev** | `localhost:8080` | Every commit | Fast iteration |
-| **2. Local Docker** | Docker on Mac | After each feature | Production-like test |
+| **2. Local Docker** | Docker on PC/Mac | After each feature | Production-like test |
 | **3. NAS Docker** | SSH to NAS | Daily/Before merge | Real hardware |
-| **4. Dockhand** | `kedemstorage:3866` | Before release | Production deployment |
+| **4. Dockhand** | NAS Dockhand UI | Before release | Production deployment |
+
+---
+
+## Deployment Options
+
+### Option 1: NAS (Recommended for centralized storage)
+- UGREEN NAS DXP4800 Plus or similar
+- Run via Dockhand or Docker CLI
+- Access videos from NAS storage
+
+### Option 2: Local PC/Mac (For video editing workflow)
+- Run as local Docker container
+- Scan videos from local hard drives
+- Perfect for Premiere Pro/DaVinci Resolve project prep
 
 ---
 
@@ -42,6 +56,7 @@
 - [x] Export (CSV/Excel)
 - [x] Docker container
 - [x] CI/CD pipeline
+- [x] User authentication
 
 ### Phase 2: Video Editor Essentials
 - [ ] **Thumbnails** - Extract frame at 10% of video
@@ -86,17 +101,26 @@ npm run dev
 # Access at http://localhost:5173
 ```
 
-### Run with Docker (Local)
+---
+
+## Docker Deployment
+
+### Run with Docker (Local PC/Mac)
+
+Perfect for scanning local video files for video editing projects:
+
 ```bash
 # Build locally
 docker build -t kdo-vtg:local .
 
-# Run with volume mounts
+# Run - mount your video folders
 docker run -d -p 8080:8000 \
-  -v /path/to/videos:/media:ro \
+  -v /path/to/your/videos:/media:ro \
   -v kdo-vtg-config:/app/config \
   --name kdo-vtg-local \
   kdo-vtg:local
+
+# Access at http://localhost:8080
 
 # View logs
 docker logs -f kdo-vtg-local
@@ -105,29 +129,43 @@ docker logs -f kdo-vtg-local
 docker stop kdo-vtg-local && docker rm kdo-vtg-local
 ```
 
+### Run Pre-built Image (PC/Mac/NAS)
+
+```bash
+# Pull latest image
+docker pull ghcr.io/omrik/kdo-vtg:main
+
+# Run on PC/Mac
+docker run -d -p 8080:8000 \
+  -v /Users/yourname/Movies:/media:ro \
+  -v kdo-vtg-config:/app/config \
+  --name kdo-vtg \
+  ghcr.io/omrik/kdo-vtg:main
+
+# Access at http://localhost:8080
+```
+
 ### Testing on NAS via SSH
 
 ```bash
 # SSH to NAS
-ssh user@kedemstorage
+ssh user@<nas-ip>
 
 # Pull latest image
 docker pull ghcr.io/omrik/kdo-vtg:main
 
-# Run with volume mounts
-docker run -d -p 8081:8000 \
+# Run with volume mounts (adjust path for your NAS)
+docker run -d -p 8080:8000 \
   -v /volume1/media:/media:ro \
   -v kdo-vtg-config:/app/config \
-  --name kdo-vtg-test \
+  --name kdo-vtg \
   ghcr.io/omrik/kdo-vtg:main
 
 # Check logs
-docker logs -f kdo-vtg-test
-
-# Access at http://kedemstorage:8081
+docker logs -f kdo-vtg
 
 # Cleanup
-docker stop kdo-vtg-test && docker rm kdo-vtg-test
+docker stop kdo-vtg && docker rm kdo-vtg
 ```
 
 ---
@@ -159,10 +197,10 @@ Since Dockhand doesn't have a REST API, control Docker directly via SSH:
 
 ```bash
 # SSH and run commands on NAS
-ssh user@kedemstorage "docker ps"
+ssh user@<nas-ip> "docker ps"
 
 # Redeploy container
-ssh user@kedemstorage "docker pull ghcr.io/omrik/kdo-vtg:main && \
+ssh user@<nas-ip> "docker pull ghcr.io/omrik/kdo-vtg:main && \
   docker stop kdo-vtg || true && \
   docker rm kdo-vtg || true && \
   docker run -d -p 8080:8000 \
@@ -182,22 +220,6 @@ Dockhand supports **Git integration** for automatic deployments:
 
 This way: `git push` → Dockhand auto-builds & deploys.
 
-### Alternative: Webhook-based CI/CD
-
-Use GitHub Actions + SSH to deploy:
-
-```yaml
-# In .github/workflows/deploy.yml
-- name: Deploy to NAS
-  run: |
-    ssh user@kedemstorage "docker pull ghcr.io/omrik/kdo-vtg:main && \
-      docker stop kdo-vtg && docker rm kdo-vtg && \
-      docker run -d -p 8080:8000 \
-        -v /volume1/media:/media:ro \
-        -v kdo-vtg-config:/app/config \
-        --name kdo-vtg ghcr.io/omrik/kdo-vtg:main"
-```
-
 ---
 
 ## CI/CD Pipeline
@@ -216,8 +238,7 @@ Use GitHub Actions + SSH to deploy:
 │  │ 4. Create image tags                 │                  │
 │  └─────────────────────────────────────┘                  │
 │       ↓                                                    │
-│  Manual trigger: Redeploy on NAS                            │
-│  (via SSH or Dockhand UI)                                 │
+│  Deploy via: Dockhand, SSH, or pull manually               │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -253,13 +274,13 @@ cd ~/Documents/kdo-vtg
 npm run dev --prefix frontend  # Frontend dev
 cd backend && uvicorn main:app --reload  # Backend dev
 
-# --- Local Docker ---
+# --- Local Docker (PC/Mac) ---
 docker build -t kdo-vtg:dev .
 docker run -p 8080:8000 -v ~/Movies:/media:ro kdo-vtg:dev
 
 # --- NAS SSH Commands ---
-ssh user@kedemstorage "docker pull ghcr.io/omrik/kdo-vtg:main"
-ssh user@kedemstorage "docker logs kdo-vtg --tail 100"
+ssh user@<nas-ip> "docker pull ghcr.io/omrik/kdo-vtg:main"
+ssh user@<nas-ip> "docker logs kdo-vtg --tail 100"
 
 # --- Git Workflow ---
 git checkout -b feature/new-feature
