@@ -201,6 +201,7 @@ function App() {
   }
 
   const handleLogin = async () => {
+    setError(null)
     try {
       const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login'
       const res = await fetch(`${API_BASE}${endpoint}`, {
@@ -215,6 +216,7 @@ function App() {
         localStorage.setItem('token', data.access_token)
         setShowLoginModal(false)
         setLoginForm({ username: '', password: '' })
+        setError(null)
         if (isFirstRun) {
           setIsFirstRun(false)
           setIsRegister(false)
@@ -230,7 +232,9 @@ function App() {
   const handleLogout = () => {
     setToken(null)
     setUser(null)
+    setError(null)
     localStorage.removeItem('token')
+    setActiveTab('folders')
   }
 
   const fetchFolders = async () => {
@@ -445,18 +449,20 @@ function App() {
           KDO Video Tagger
         </h1>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <nav className="nav-tabs">
-            {tabs.map(tab => (
-              <button
-                key={tab.id}
-                className={`nav-tab ${activeTab === tab.id ? 'active' : ''}`}
-                onClick={() => setActiveTab(tab.id as Tab)}
-              >
-                <tab.icon size={16} />
-                <span className="nav-label">{tab.label}</span>
-              </button>
-            ))}
-          </nav>
+          {user && (
+            <nav className="nav-tabs">
+              {tabs.map(tab => (
+                <button
+                  key={tab.id}
+                  className={`nav-tab ${activeTab === tab.id ? 'active' : ''}`}
+                  onClick={() => setActiveTab(tab.id as Tab)}
+                >
+                  <tab.icon size={16} />
+                  <span className="nav-label">{tab.label}</span>
+                </button>
+              ))}
+            </nav>
+          )}
           {user ? (
             <button className="btn btn-secondary" onClick={handleLogout}>
               <LogOut size={16} />
@@ -481,7 +487,9 @@ function App() {
           </div>
         )}
 
-        {activeTab === 'folders' && (
+        {user ? (
+          <>
+            {activeTab === 'folders' && (
           <>
             <div className="card">
               <div className="card-header">
@@ -860,20 +868,13 @@ function App() {
             <div className="settings-grid">
               <div className="form-group">
                 <label>Account</label>
-                {user ? (
-                  <div style={{ padding: '0.5rem', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
-                    <div>Logged in as <strong>{user.username}</strong></div>
-                    <button className="btn btn-secondary" style={{ marginTop: '0.5rem' }} onClick={handleLogout}>
-                      <LogOut size={14} />
-                      Logout
-                    </button>
-                  </div>
-                ) : (
-                  <button className="btn btn-primary" onClick={() => setShowLoginModal(true)}>
-                    <LogIn size={14} />
-                    Login / Register
+                <div style={{ padding: '0.5rem', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
+                  <div>Logged in as <strong>{user.username}</strong></div>
+                  <button className="btn btn-secondary" style={{ marginTop: '0.5rem' }} onClick={handleLogout}>
+                    <LogOut size={14} />
+                    Logout
                   </button>
-                )}
+                </div>
               </div>
 
               <div className="form-group">
@@ -881,6 +882,18 @@ function App() {
                 <input type="text" value="/media" readOnly />
               </div>
             </div>
+          </div>
+        )}
+          </>
+        ) : (
+          <div className="empty-state">
+            <LogIn size={48} />
+            <h2>Please Login</h2>
+            <p>You need to be logged in to use this application.</p>
+            <button className="btn btn-primary" onClick={() => setShowLoginModal(true)} style={{ marginTop: '1rem' }}>
+              <LogIn size={16} />
+              Login
+            </button>
           </div>
         )}
       </main>
