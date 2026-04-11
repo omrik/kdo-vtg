@@ -135,7 +135,21 @@ function App() {
   const [isRegister, setIsRegister] = useState(false)
 
   useEffect(() => {
-    checkSetupStatus()
+    const init = async () => {
+      const storedToken = localStorage.getItem('token')
+      if (storedToken) {
+        setToken(storedToken)
+        await fetchMe()
+        fetchFolders()
+        fetchStats()
+        fetchCollections()
+        fetchProjects()
+      } else {
+        await checkSetupStatus()
+      }
+      setAppLoading(false)
+    }
+    init()
   }, [])
 
   useEffect(() => {
@@ -159,20 +173,25 @@ function App() {
       }
     } catch (err) {
       console.error('Failed to check setup status')
-    } finally {
-      setAppLoading(false)
     }
   }
 
   const fetchMe = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/auth/me`)
+      const storedToken = localStorage.getItem('token')
+      if (!storedToken) return
+      
+      const res = await fetch(`${API_BASE}/api/auth/me`, {
+        headers: { Authorization: `Bearer ${storedToken}` }
+      })
       if (res.ok) {
         const data = await res.json()
         setUser(data)
+        setToken(storedToken)
       } else {
         setToken(null)
         localStorage.removeItem('token')
+        setUser(null)
       }
     } catch (err) {
       console.error('Failed to fetch user')
