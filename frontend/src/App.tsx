@@ -247,11 +247,6 @@ function App() {
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  const formatFileSize = (bytes: number | null) => {
-    if (!bytes) return '-'
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-  }
-
   return (
     <div className="app">
       <header className="header">
