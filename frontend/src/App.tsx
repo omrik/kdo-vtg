@@ -129,6 +129,7 @@ function App() {
   const [newCollectionName, setNewCollectionName] = useState('')
   const [newProjectName, setNewProjectName] = useState('')
   const [isFirstRun, setIsFirstRun] = useState(false)
+  const [needsSetup, setNeedsSetup] = useState(false)
   const [appLoading, setAppLoading] = useState(true)
 
   const [loginForm, setLoginForm] = useState({ username: '', password: '' })
@@ -166,6 +167,7 @@ function App() {
     try {
       const res = await fetch(`${API_BASE}/api/auth/setup-status`)
       const data = await res.json()
+      setNeedsSetup(data.needs_setup)
       if (data.needs_setup) {
         setIsFirstRun(true)
         setIsRegister(true)
@@ -918,7 +920,7 @@ function App() {
                 </button>
               )}
             </div>
-            {!isFirstRun && (
+            {needsSetup && (
               <div style={{ marginTop: '1rem', fontSize: '0.875rem' }}>
                 <a href="#" onClick={(e) => { e.preventDefault(); setIsRegister(!isRegister) }}>
                   {isRegister ? 'Already have an account? Login' : "Don't have an account? Register"}
