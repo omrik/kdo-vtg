@@ -128,9 +128,15 @@ function App() {
   const [showNewProjectModal, setShowNewProjectModal] = useState(false)
   const [newCollectionName, setNewCollectionName] = useState('')
   const [newProjectName, setNewProjectName] = useState('')
+  const [isFirstRun, setIsFirstRun] = useState(false)
+  const [appLoading, setAppLoading] = useState(true)
 
   const [loginForm, setLoginForm] = useState({ username: '', password: '' })
   const [isRegister, setIsRegister] = useState(false)
+
+  useEffect(() => {
+    checkSetupStatus()
+  }, [])
 
   useEffect(() => {
     if (token) {
@@ -141,6 +147,22 @@ function App() {
     fetchCollections()
     fetchProjects()
   }, [token])
+
+  const checkSetupStatus = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/setup-status`)
+      const data = await res.json()
+      if (data.needs_setup) {
+        setIsFirstRun(true)
+        setIsRegister(true)
+        setShowLoginModal(true)
+      }
+    } catch (err) {
+      console.error('Failed to check setup status')
+    } finally {
+      setAppLoading(false)
+    }
+  }
 
   const fetchMe = async () => {
     try {
@@ -172,6 +194,10 @@ function App() {
         localStorage.setItem('token', data.access_token)
         setShowLoginModal(false)
         setLoginForm({ username: '', password: '' })
+        if (isFirstRun) {
+          setIsFirstRun(false)
+          setIsRegister(false)
+        }
       } else {
         setError(data.detail || 'Login failed')
       }
@@ -361,6 +387,11 @@ function App() {
 
   return (
     <div className="app">
+      {appLoading && (
+        <div className="loading">
+          <Video size={32} style={{ animation: 'spin 1s linear infinite' }} />
+        </div>
+      )}
       <header className="header">
         <h1>
           <Video size={28} />
@@ -805,9 +836,14 @@ function App() {
       </main>
 
       {showLoginModal && (
-        <div className="modal-overlay" onClick={() => setShowLoginModal(false)}>
+        <div className="modal-overlay" onClick={isFirstRun ? undefined : () => setShowLoginModal(false)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>{isRegister ? 'Register' : 'Login'}</h2>
+            <h2>{isFirstRun ? 'Welcome! Create Admin Account' : isRegister ? 'Register' : 'Login'}</h2>
+            {isFirstRun && (
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem', fontSize: '0.875rem' }}>
+                Create your admin account to get started.
+              </p>
+            )}
             <div className="form-group">
               <label>Username</label>
               <input
@@ -826,17 +862,21 @@ function App() {
             </div>
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
               <button className="btn btn-primary" onClick={handleLogin}>
-                {isRegister ? 'Register' : 'Login'}
+                {isFirstRun ? 'Create Account' : isRegister ? 'Register' : 'Login'}
               </button>
-              <button className="btn btn-secondary" onClick={() => setShowLoginModal(false)}>
-                Cancel
-              </button>
+              {!isFirstRun && (
+                <button className="btn btn-secondary" onClick={() => setShowLoginModal(false)}>
+                  Cancel
+                </button>
+              )}
             </div>
-            <div style={{ marginTop: '1rem', fontSize: '0.875rem' }}>
-              <a href="#" onClick={(e) => { e.preventDefault(); setIsRegister(!isRegister) }}>
-                {isRegister ? 'Already have an account? Login' : "Don't have an account? Register"}
-              </a>
-            </div>
+            {!isFirstRun && (
+              <div style={{ marginTop: '1rem', fontSize: '0.875rem' }}>
+                <a href="#" onClick={(e) => { e.preventDefault(); setIsRegister(!isRegister) }}>
+                  {isRegister ? 'Already have an account? Login' : "Don't have an account? Register"}
+                </a>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -163,8 +163,25 @@ def health_check():
     return {"status": "healthy", "service": "kdo-vtg"}
 
 
+@app.get("/api/auth/setup-status")
+def get_setup_status(db: Session = Depends(get_db)):
+    user_count = db.query(User).count()
+    return {
+        "needs_setup": user_count == 0,
+        "user_count": user_count
+    }
+
+
 @app.post("/api/auth/register", response_model=TokenResponse)
 def register(request: RegisterRequest, db: Session = Depends(get_db)):
+    user_count = db.query(User).count()
+    
+    if user_count > 0:
+        raise HTTPException(
+            status_code=403, 
+            detail="Registration is closed. Please login."
+        )
+    
     existing = db.query(User).filter(User.username == request.username).first()
     if existing:
         raise HTTPException(status_code=400, detail="Username already exists")
@@ -173,6 +190,8 @@ def register(request: RegisterRequest, db: Session = Depends(get_db)):
         username=request.username,
         email=request.email,
         hashed_password=get_password_hash(request.password),
+        is_admin=True,
+        is_active=True,
     )
     db.add(user)
     db.commit()
