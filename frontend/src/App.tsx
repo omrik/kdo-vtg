@@ -548,6 +548,9 @@ function App() {
                         onClick={() => {
                           if (item.type === 'folder') {
                             setSelectedFolder(item.path)
+                            fetchFolderContents(item.path)
+                          } else {
+                            setSelectedFolder(item.path)
                             setActiveTab('scan')
                           }
                         }}
