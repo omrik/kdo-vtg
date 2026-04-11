@@ -121,6 +121,26 @@ class TestVideos:
         data = response.json()
         assert "videos" in data
 
+    def test_video_tags_requires_auth(self, client):
+        response = client.get("/api/videos/1/tags")
+        assert response.status_code == 401
+
+    def test_add_video_tag(self, client, auth):
+        response = client.post(
+            "/api/videos/1/tags",
+            json={"tag": "test-tag"},
+            headers=auth
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "tags" in data
+
+    def test_get_all_tags(self, client, auth):
+        response = client.get("/api/tags", headers=auth)
+        assert response.status_code == 200
+        data = response.json()
+        assert "tags" in data
+
     def test_get_stats(self, client, auth):
         response = client.get("/api/stats", headers=auth)
         assert response.status_code == 200

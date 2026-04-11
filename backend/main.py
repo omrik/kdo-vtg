@@ -396,6 +396,7 @@ def get_videos(
     folder_path: Optional[str] = None,
     resolution: Optional[str] = Query(None, description="Filter by resolution (e.g., 3840x2160)"),
     camera_type: Optional[str] = Query(None, description="Filter by camera type (e.g., DJI)"),
+    tag: Optional[str] = Query(None, description="Filter by tag"),
     min_duration: Optional[float] = Query(None, description="Minimum duration in seconds"),
     max_duration: Optional[float] = Query(None, description="Maximum duration in seconds"),
     search: Optional[str] = Query(None, description="Search in filename"),
@@ -423,6 +424,9 @@ def get_videos(
         query = query.filter(Video.filename.contains(search))
     
     videos = query.order_by(Video.created_at.desc()).all()
+    
+    if tag:
+        videos = [v for v in videos if v.tags and tag in v.tags]
     
     return {
         "videos": [
@@ -464,6 +468,78 @@ def get_thumbnail(
         raise HTTPException(status_code=404, detail="Thumbnail not found")
     
     return FileResponse(video.thumbnail, media_type="image/jpeg")
+
+
+class TagRequest(BaseModel):
+    tag: str
+
+
+@app.get("/api/videos/{video_id}/tags")
+def get_video_tags(
+    video_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    return {"tags": video.tags or []}
+
+
+@app.post("/api/videos/{video_id}/tags")
+def add_video_tag(
+    video_id: int,
+    request: TagRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    current_tags = video.tags or []
+    tag = request.tag.strip()
+    if tag and tag not in current_tags:
+        current_tags.append(tag)
+        video.tags = current_tags
+        db.commit()
+        db.refresh(video)
+    
+    return {"tags": video.tags or []}
+
+
+@app.delete("/api/videos/{video_id}/tags/{tag}")
+def remove_video_tag(
+    video_id: int,
+    tag: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    current_tags = video.tags or []
+    if tag in current_tags:
+        current_tags.remove(tag)
+        video.tags = current_tags
+        db.commit()
+    
+    return {"tags": video.tags}
+
+
+@app.get("/api/tags")
+def get_all_tags(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    videos = db.query(Video).all()
+    all_tags = set()
+    for video in videos:
+        if video.tags:
+            all_tags.update(video.tags)
+    return {"tags": sorted(list(all_tags))}
 
 
 @app.get("/api/stats")
