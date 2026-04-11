@@ -60,7 +60,7 @@ class VideoScanner:
                 metadata["height"] = height
                 metadata["resolution"] = f"{width}x{height}"
 
-                duration = float(video_stream.get("duration", 0))
+                duration = float(format_info.get("duration", 0) or 0)
                 metadata["duration"] = duration
 
                 fps_str = video_stream.get("r_frame_rate", "0/1")
@@ -71,7 +71,7 @@ class VideoScanner:
                 metadata["codec"] = video_stream.get("codec_name", "unknown")
                 metadata["bitrate"] = format_info.get("bit_rate", "unknown")
 
-            metadata["file_size"] = int(format_info.get("duration", 0)) * int(format_info.get("bit_rate", 0)) // 8 if format_info.get("bit_rate") else 0
+            metadata["file_size"] = int(format_info.get("size", 0) or 0)
 
             return metadata
         except Exception as e:
