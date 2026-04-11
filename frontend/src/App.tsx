@@ -141,11 +141,11 @@ function App() {
   useEffect(() => {
     if (token) {
       fetchMe()
+      fetchFolders()
+      fetchStats()
+      fetchCollections()
+      fetchProjects()
     }
-    fetchFolders()
-    fetchStats()
-    fetchCollections()
-    fetchProjects()
   }, [token])
 
   const checkSetupStatus = async () => {
@@ -199,10 +199,10 @@ function App() {
           setIsRegister(false)
         }
       } else {
-        setError(data.detail || 'Login failed')
+        setError(data.detail || `Error: ${res.status}`)
       }
     } catch (err) {
-      setError('Login failed')
+      setError(`Connection failed: ${err}`)
     }
   }
 

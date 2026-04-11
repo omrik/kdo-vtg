@@ -228,6 +228,7 @@ def get_me(user: dict = Depends(get_current_user), db: Session = Depends(get_db)
 @app.get("/api/folders")
 def list_folders(
     db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user),
     media_root: str = Query("/media", description="Root directory to scan")
 ):
     folders = []
@@ -249,7 +250,7 @@ def list_folders(
 
 
 @app.get("/api/folders/{path:path}")
-def get_folder_contents(path: str, db: Session = Depends(get_db)):
+def get_folder_contents(path: str, db: Session = Depends(get_db), user: dict = Depends(get_current_user)):
     if not os.path.exists(path):
         raise HTTPException(status_code=404, detail="Folder not found")
     
