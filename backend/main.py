@@ -420,12 +420,29 @@ def get_videos(
                 "date_created": v.date_created.isoformat() if v.date_created else None,
                 "file_size": v.file_size,
                 "tags": v.tags or [],
+                "thumbnail": v.thumbnail,
                 "yolo_enabled": v.yolo_enabled,
                 "created_at": v.created_at.isoformat() if v.created_at else None,
             }
             for v in videos
         ]
     }
+
+
+@app.get("/api/thumbnails/{video_id}")
+def get_thumbnail(
+    video_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    if not video.thumbnail or not os.path.exists(video.thumbnail):
+        raise HTTPException(status_code=404, detail="Thumbnail not found")
+    
+    return FileResponse(video.thumbnail, media_type="image/jpeg")
 
 
 @app.get("/api/stats")

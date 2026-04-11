@@ -121,6 +121,31 @@ class VideoScanner:
                     continue
         return None
 
+    def extract_thumbnail(self, filepath: str, duration: float) -> Optional[str]:
+        """Extract thumbnail at 10% of video duration."""
+        try:
+            timestamp = max(1, int(duration * 0.1))
+            output_dir = "/app/config/thumbnails"
+            os.makedirs(output_dir, exist_ok=True)
+            
+            filename_hash = str(abs(hash(filepath)))
+            thumbnail_path = os.path.join(output_dir, f"{filename_hash}.jpg")
+            
+            if os.path.exists(thumbnail_path):
+                return thumbnail_path
+            
+            (
+                ffmpeg.input(filepath, ss=timestamp)
+                .output(thumbnail_path, vframes=1, format='image2', vcodec='mjpeg', s='320x180')
+                .overwrite_output()
+                .run(capture_stdout=True, capture_stderr=True)
+            )
+            
+            return thumbnail_path
+        except Exception as e:
+            print(f"Thumbnail extraction error for {filepath}: {e}")
+            return None
+
     def detect_objects_yolo(self, filepath: str) -> set:
         if not self.yolo_enabled:
             return set()
@@ -170,6 +195,9 @@ class VideoScanner:
         camera_type = self.extract_camera_type(filepath, filename)
         date_created = self.extract_date_from_filename(filename)
         tags = self.detect_objects_yolo(filepath)
+        
+        duration = metadata.get("duration", 0) or 0
+        thumbnail = self.extract_thumbnail(filepath, duration) if duration > 0 else None
 
         existing = self.db.query(Video).filter(Video.filepath == filepath).first()
         
@@ -185,6 +213,7 @@ class VideoScanner:
             existing.camera_type = camera_type
             existing.date_created = date_created
             existing.tags = list(tags) if tags else existing.tags
+            existing.thumbnail = thumbnail if thumbnail else existing.thumbnail
             existing.yolo_enabled = self.yolo_enabled
             existing.scan_id = self.scan_job.id
             video = existing
@@ -203,6 +232,7 @@ class VideoScanner:
                 camera_type=camera_type,
                 date_created=date_created,
                 tags=list(tags) if tags else [],
+                thumbnail=thumbnail,
                 yolo_enabled=self.yolo_enabled,
                 scan_id=self.scan_job.id,
             )

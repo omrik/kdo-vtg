@@ -40,6 +40,7 @@ class Video(Base):
     date_created = Column(DateTime, nullable=True)
     file_size = Column(Integer, nullable=True)
     tags = Column(JSON, nullable=True)
+    thumbnail = Column(String, nullable=True)
     yolo_enabled = Column(Boolean, default=False)
     folder_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
