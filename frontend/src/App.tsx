@@ -214,7 +214,9 @@ function App() {
 
   const fetchFolders = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/folders`)
+      const res = await fetch(`${API_BASE}/api/folders`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
       const data = await res.json()
       setFolders(data.folders || [])
     } catch (err) {
@@ -225,7 +227,9 @@ function App() {
   const fetchFolderContents = async (path: string) => {
     setLoading(true)
     try {
-      const res = await fetch(`${API_BASE}/api/folders/${encodeURIComponent(path)}`)
+      const res = await fetch(`${API_BASE}/api/folders/${encodeURIComponent(path)}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
       const data = await res.json()
       setContents(data.contents || [])
       setCurrentPath(path)
@@ -242,7 +246,9 @@ function App() {
       const url = folderPath
         ? `${API_BASE}/api/videos?folder_path=${encodeURIComponent(folderPath)}`
         : `${API_BASE}/api/videos`
-      const res = await fetch(url)
+      const res = await fetch(url, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
       const data = await res.json()
       setVideos(data.videos || [])
     } catch (err) {
@@ -254,7 +260,9 @@ function App() {
 
   const fetchStats = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/stats`)
+      const res = await fetch(`${API_BASE}/api/stats`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
       const data = await res.json()
       setStats(data)
     } catch (err) {
@@ -264,7 +272,9 @@ function App() {
 
   const fetchScanStatus = async (scanId: number) => {
     try {
-      const res = await fetch(`${API_BASE}/api/scan/${scanId}`)
+      const res = await fetch(`${API_BASE}/api/scan/${scanId}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
       const data = await res.json()
       setCurrentScan(data)
       if (data.status === 'running') {
@@ -280,7 +290,9 @@ function App() {
 
   const fetchCollections = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/collections`)
+      const res = await fetch(`${API_BASE}/api/collections`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
       const data = await res.json()
       setCollections(data.collections || [])
     } catch (err) {
@@ -290,7 +302,9 @@ function App() {
 
   const fetchProjects = async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/projects`)
+      const res = await fetch(`${API_BASE}/api/projects`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
       const data = await res.json()
       setProjects(data.projects || [])
     } catch (err) {
@@ -302,7 +316,10 @@ function App() {
     try {
       const res = await fetch(`${API_BASE}/api/collections`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ name: newCollectionName }),
       })
       if (res.ok) {
@@ -319,7 +336,10 @@ function App() {
     try {
       const res = await fetch(`${API_BASE}/api/projects`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({ name: newProjectName }),
       })
       if (res.ok) {
@@ -344,7 +364,10 @@ function App() {
     try {
       const res = await fetch(`${API_BASE}/api/scan`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
         body: JSON.stringify({
           folder_path: selectedFolder,
           ...scanSettings,
@@ -362,7 +385,10 @@ function App() {
   const cancelScan = async () => {
     if (!currentScan) return
     try {
-      await fetch(`${API_BASE}/api/scan/${currentScan.id}/cancel`, { method: 'POST' })
+      await fetch(`${API_BASE}/api/scan/${currentScan.id}/cancel`, { 
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
       fetchScanStatus(currentScan.id)
     } catch (err) {
       setError('Failed to cancel scan')
