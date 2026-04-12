@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from typing import Optional, List
 from pathlib import Path
 
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Query
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -874,3 +874,58 @@ def create_project(
         "status": project.status,
         "created_at": project.created_at.isoformat() if project.created_at else None,
     }
+
+
+
+@app.get("/api/settings/export-db")
+def export_database(
+    user: User = Depends(get_current_user),
+):
+    """Export the database file for backup."""
+    db_path = os.environ.get("DATABASE_URL", "sqlite:///./config/kdo-vtg.db").replace("sqlite:///", "")
+    if not os.path.exists(db_path):
+        raise HTTPException(status_code=404, detail="Database file not found")
+    
+    return FileResponse(db_path, media_type="application/octet-stream", filename="kdo-vtg.db")
+
+
+@app.post("/api/settings/import-db")
+async def import_database(
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+):
+    """Import a database file (replaces existing)."""
+    db_path = os.environ.get("DATABASE_URL", "sqlite:///./config/kdo-vtg.db").replace("sqlite:///", "")
+    
+    try:
+        with open(db_path, "wb") as f:
+            content = await file.read()
+            f.write(content)
+        return {"status": "ok", "message": "Database imported successfully. Please restart the app."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to import database: {str(e)}")
+
+
+@app.post("/api/settings/reset-db")
+def reset_database(
+    user: User = Depends(get_current_user),
+):
+    """Reset the database (deletes all data)."""
+    from backend.database import Base, engine
+    
+    db_path = os.environ.get("DATABASE_URL", "sqlite:///./config/kdo-vtg.db").replace("sqlite:///", "")
+    
+    try:
+        # Close all connections
+        engine.dispose()
+        
+        # Delete database file
+        if os.path.exists(db_path):
+            os.remove(db_path)
+        
+        # Recreate tables
+        Base.metadata.create_all(bind=engine)
+        
+        return {"status": "ok", "message": "Database reset successfully"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to reset database: {str(e)}")

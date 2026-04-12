@@ -134,8 +134,61 @@ class Project(Base):
     videos = relationship("Video", secondary=project_videos, backref="projects")
 
 
+
+def migrate_db():
+    """Add missing columns to existing database for schema upgrades."""
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        # Get existing columns for videos table
+        result = conn.execute(text("PRAGMA table_info(videos)"))
+        columns = [row[1] for row in result]
+        
+        # Add missing columns
+        migrations = [
+            ('thumbnail', 'TEXT'),
+            ('tags', 'TEXT'),
+            ('scan_id', 'INTEGER'),
+            ('updated_at', 'TIMESTAMP'),
+        ]
+        
+        for col_name, col_type in migrations:
+            if col_name not in columns:
+                try:
+                    conn.execute(text(f"ALTER TABLE videos ADD COLUMN {col_name} {col_type}"))
+                    print(f"Added column: {col_name}")
+                except Exception as e:
+                    print(f"Could not add column {col_name}: {e}")
+        
+        # Create collection_videos table if not exists
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS collection_videos (
+                collection_id INTEGER NOT NULL,
+                video_id INTEGER NOT NULL,
+                added_at TIMESTAMP,
+                PRIMARY KEY (collection_id, video_id),
+                FOREIGN KEY(collection_id) REFERENCES collections (id),
+                FOREIGN KEY(video_id) REFERENCES videos (id)
+            )
+        """))
+        
+        # Create project_videos table if not exists
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS project_videos (
+                project_id INTEGER NOT NULL,
+                video_id INTEGER NOT NULL,
+                added_at TIMESTAMP,
+                PRIMARY KEY (project_id, video_id),
+                FOREIGN KEY(project_id) REFERENCES projects (id),
+                FOREIGN KEY(video_id) REFERENCES videos (id)
+            )
+        """))
+        
+        conn.commit()
+
+
 def init_db():
     Base.metadata.create_all(bind=engine)
+    migrate_db()
 
 
 def get_db():

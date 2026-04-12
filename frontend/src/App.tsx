@@ -15,9 +15,11 @@ import {
   LogOut,
   LogIn,
   Plus,
+  Trash2,
+  Download,
+  Upload,
   Grid,
   List,
-  Download,
   Image,
   FolderPlus,
   BriefcaseIcon,
@@ -262,6 +264,70 @@ function App() {
     setError(null)
     localStorage.removeItem('token')
     setActiveTab('folders')
+  }
+  const exportDatabase = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/settings/export-db`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      if (res.ok) {
+        const blob = await res.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = 'kdo-vtg.db'
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+      }
+    } catch (err) {
+      setError('Failed to export database')
+    }
+  }
+
+  const importDatabase = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!window.confirm('This will replace your current database. Are you sure?')) return
+    
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch(`${API_BASE}/api/settings/import-db`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData
+      })
+      if (res.ok) {
+        alert('Database imported. Please refresh the page.')
+        window.location.reload()
+      } else {
+        const data = await res.json()
+        setError(data.detail || 'Failed to import database')
+      }
+    } catch (err) {
+      setError('Failed to import database')
+    }
+    e.target.value = ''
+  }
+
+  const resetDatabase = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/settings/reset-db`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      if (res.ok) {
+        alert('Database reset. Please refresh the page.')
+        window.location.reload()
+      } else {
+        const data = await res.json()
+        setError(data.detail || 'Failed to reset database')
+      }
+    } catch (err) {
+      setError('Failed to reset database')
+    }
   }
 
   const fetchFolders = async () => {
@@ -705,7 +771,6 @@ function App() {
                       onClick={() => {
                         setSelectedFolder(folder.path)
                         fetchFolderContents(folder.path)
-                        setActiveTab('scan')
                       }}
                     >
                       <div className="folder-name">
@@ -748,6 +813,15 @@ function App() {
                     Back
                   </button>
                 </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-tertiary)', margin: '0 -1rem', padding: '0.75rem 1rem' }}>
+                  <span>{contents.filter(c => c.type === 'folder').length} folders, {contents.filter(c => c.type === 'video').length} videos</span>
+                  {selectedFolder && (
+                    <button className="btn btn-primary" onClick={() => setActiveTab('scan')}>
+                      <Play size={14} />
+                      Scan This Folder
+                    </button>
+                  )}
+                </div>
 
                 {loading ? (
                   <div className="loading">Loading...</div>
@@ -768,7 +842,6 @@ function App() {
                             fetchFolderContents(item.path)
                           } else {
                             setSelectedFolder(item.path)
-                            setActiveTab('scan')
                           }
                         }}
                       >
@@ -1400,6 +1473,29 @@ function App() {
               <div className="form-group">
                 <label>Media Root</label>
                 <input type="text" value="/media" readOnly />
+              </div>
+
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label>Database</label>
+                <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.5rem' }}>
+                  <button className="btn btn-secondary" onClick={exportDatabase}>
+                    <Download size={14} />
+                    Export
+                  </button>
+                  <label className="btn btn-secondary" style={{ cursor: 'pointer' }}>
+                    <Upload size={14} />
+                    Import
+                    <input type="file" accept=".db" onChange={importDatabase} hidden />
+                  </label>
+                  <button className="btn btn-danger" onClick={() => {
+                    if (window.confirm('This will delete ALL data. Are you sure?')) {
+                      resetDatabase()
+                    }
+                  }}>
+                    <Trash2 size={14} />
+                    Reset
+                  </button>
+                </div>
               </div>
             </div>
           </div>
