@@ -290,6 +290,7 @@ function App() {
 
   const fetchVideos = async (folderPath?: string) => {
     setLoading(true)
+    setError(null)
     try {
       const params = new URLSearchParams()
       if (folderPath) params.set('folder_path', folderPath)
@@ -304,10 +305,14 @@ function App() {
       const res = await fetch(url, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       })
+      if (!res.ok) {
+        throw new Error(`API error: ${res.status}`)
+      }
       const data = await res.json()
       setVideos(data.videos || [])
     } catch (err) {
-      setError('Failed to fetch videos')
+      console.error('Failed to fetch videos:', err)
+      setError(`Failed to load videos: ${err}`)
     } finally {
       setLoading(false)
     }
@@ -1463,6 +1468,15 @@ function App() {
         <div className="modal-overlay" onClick={() => { setShowAddToModal(null); setAddToVideoId(null) }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>Add to {showAddToModal === 'collection' ? 'Collection' : 'Project'}</h2>
+            <button className="btn btn-link" style={{ marginBottom: '1rem' }} onClick={() => {
+              if (showAddToModal === 'collection') {
+                fetchCollections()
+              } else {
+                fetchProjects()
+              }
+            }}>
+              <RefreshCw size={14} /> Refresh list
+            </button>
             {showAddToModal === 'collection' ? (
               collections.length === 0 ? (
                 <div>

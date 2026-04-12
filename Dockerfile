@@ -20,7 +20,8 @@ RUN pip install --no-cache-dir --break-system-packages \
     opencv-python-headless \
     python-jose[cryptography] \
     passlib==1.7.4 \
-    bcrypt==4.0.1
+    bcrypt==4.0.1 \
+    openpyxl
 
 COPY backend/ ./backend/
 
