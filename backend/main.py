@@ -501,8 +501,7 @@ def add_video_tag(
     current_tags = video.tags or []
     tag = request.tag.strip()
     if tag and tag not in current_tags:
-        current_tags.append(tag)
-        video.tags = current_tags
+        video.tags = current_tags + [tag]
         db.commit()
         db.refresh(video)
     
@@ -522,8 +521,8 @@ def remove_video_tag(
     
     current_tags = video.tags or []
     if tag in current_tags:
-        current_tags.remove(tag)
-        video.tags = current_tags
+        new_tags = [t for t in current_tags if t != tag]
+        video.tags = new_tags
         db.commit()
     
     return {"tags": video.tags}
