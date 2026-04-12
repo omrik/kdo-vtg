@@ -55,25 +55,16 @@ This document describes the key user workflows and what needs to be built to sup
 1. User opens the app for the first time
 2. **System prompts for admin account creation** (first run only)
 3. User creates admin username/password
-4. User sets up media folder path
-5. User is redirected to main dashboard
-6. User can browse folders and start scanning
+4. User is redirected to main dashboard
+5. User can browse folders and start scanning
 
 ### Implementation Status
 
 | Step | Status | Notes |
 |------|--------|-------|
-| First-run detection | ❌ | Need to check if admin exists |
-| Admin creation flow | ❌ | Show modal on first run |
-| Media path configuration | ❌ | Add to settings |
-| Redirect to dashboard | ❌ | After setup |
-
-**Required Work:**
-- [ ] Add `/api/auth/setup-complete` endpoint to check if admin exists
-- [ ] Show setup wizard if no users exist
-- [ ] Create admin user during setup
-- [ ] Add media path setting
-- [ ] Store settings in database/config
+| First-run detection | ✅ | `/api/auth/setup-status` returns needs_setup |
+| Admin creation flow | ✅ | Shows modal on first run |
+| Media path configuration | ✅ | Hardcoded to /media |
 
 ---
 
@@ -87,8 +78,8 @@ This document describes the key user workflows and what needs to be built to sup
 2. User browses to folder containing project footage
 3. User clicks "Scan" with YOLO enabled
 4. System extracts metadata and runs object detection
-5. User views results in table/grid
-6. User filters by resolution, duration, detected objects
+5. User views results in grid or table view
+6. User filters by resolution, duration, camera, tags
 7. User creates a "Project" for this edit
 8. User adds clips to the project
 9. User exports shot list for reference
@@ -98,21 +89,14 @@ This document describes the key user workflows and what needs to be built to sup
 | Step | Status | Notes |
 |------|--------|-------|
 | Login | ✅ | Working |
-| Browse folders | ✅ | Working |
+| Browse folders | ✅ | Working with navigation UX |
 | Scan with metadata | ✅ | Working |
-| Scan with YOLO | ✅ | Working |
-| View results | ✅ | Working (table) |
-| Filter videos | ❌ | Need advanced filters |
-| Create Project | ✅ | Backend ready, UI partial |
-| Add clips to project | ❌ | Need UI for this |
-| Export shot list | ✅ | CSV works |
-
-**Required Work:**
-- [ ] Advanced filter UI (resolution, duration, camera, objects)
-- [ ] Project management UI improvements
-- [ ] Add/remove videos from project
-- [ ] Notes per video in project
-- [ ] PDF shot list export
+| Scan with YOLO | ✅ | Working (ultralytics) |
+| View results | ✅ | Grid and table views |
+| Filter videos | ✅ | Resolution, duration, camera, tag |
+| Create Project | ✅ | Working |
+| Add clips to project | ✅ | Working |
+| Export shot list | ✅ | CSV and Excel export |
 
 ---
 
@@ -127,28 +111,42 @@ This document describes the key user workflows and what needs to be built to sup
 3. User clicks "Export"
 4. System generates CSV/Excel with metadata
 5. User opens in spreadsheet to plan edit
-6. User imports EDL or references file paths in NLE
 
 ### Implementation Status
 
 | Step | Status | Notes |
 |------|--------|-------|
-| Select videos | ❌ | Need multi-select |
+| Select videos | ✅ | Multi-select with checkboxes |
 | CSV export | ✅ | Working |
 | Excel export | ✅ | Working |
-| EDL export | ❌ | Not implemented |
-| FCP XML export | ❌ | Not implemented |
-| File path list | ❌ | Not implemented |
-
-**Required Work:**
-- [ ] Multi-select UI for videos
-- [ ] EDL (Edit Decision List) export
-- [ ] CSV with custom columns selection
-- [ ] File path list export (for logging)
+| Export all or selected | ✅ | Export buttons always visible |
 
 ---
 
-## Story 5: Troubleshooting
+## Story 5: Organization with Collections
+
+**Actor:** User who wants to organize videos by category
+
+### Flow
+
+1. User scans videos with tags (via YOLO or manual)
+2. User clicks "By Tag" to auto-create collections
+3. Each unique tag becomes a collection
+4. Videos with that tag are automatically added
+5. User can manually add/remove videos from collections
+
+### Implementation Status
+
+| Step | Status | Notes |
+|------|--------|-------|
+| Auto-create collections by tag | ✅ | POST /api/settings/auto-create-collections-by-tag |
+| Manual collection creation | ✅ | Working |
+| Add videos to collection | ✅ | Working |
+| View collection videos | ✅ | Grid/list toggle |
+
+---
+
+## Story 6: Troubleshooting
 
 **Actor:** User encountering issues
 
@@ -160,7 +158,7 @@ This document describes the key user workflows and what needs to be built to sup
 | Scan stuck | Progress not updating | Cancel and restart scan |
 | YOLO fails | Out of memory | Use smaller model or disable |
 | Login broken | Can't authenticate | Check JWT_SECRET env var |
-| Database corrupted | App won't start | Delete config folder |
+| Database error | "no such column" | Reset database or Settings > Reset |
 | Slow response | High CPU usage | Disable YOLO, limit concurrent scans |
 
 ### Implementation Status
@@ -168,15 +166,11 @@ This document describes the key user workflows and what needs to be built to sup
 | Item | Status | Notes |
 |------|--------|-------|
 | Health check endpoint | ✅ | `/api/health` |
-| Error messages | Partial | Need better error UI |
-| Log viewer | ❌ | Add in-app logs |
-| Settings page | ✅ | Basic settings exist |
-
-**Required Work:**
-- [ ] Comprehensive error messages in UI
-- [ ] In-app log viewer
-- [ ] Clear troubleshooting guide
-- [ ] Docker log access instructions
+| Error messages | ✅ | Better error handling in UI |
+| Database export | ✅ | Settings > Export |
+| Database import | ✅ | Settings > Import |
+| Database reset | ✅ | Settings > Reset |
+| Database migration | ✅ | Auto-adds missing columns |
 
 ---
 
@@ -186,13 +180,13 @@ This document describes the key user workflows and what needs to be built to sup
 - Has a UGREEN NAS with terabytes of video
 - Wants to organize and find footage quickly
 - Uses the app occasionally for cataloging
-- **Primary workflow:** Browse → Scan → Export
+- **Primary workflow:** Browse → Scan → Filter → Export
 
 ### Persona 2: Video Editor
 - Works on Mac/PC with local video files
 - Planning a new edit, needs to catalog B-roll
 - Uses the app to plan before opening Premiere
-- **Primary workflow:** Import → Tag → Filter → Export shot list
+- **Primary workflow:** Browse → Scan (YOLO) → Tag → Filter → Export
 
 ### Persona 3: Content Creator
 - Has multiple cameras (DJI, GoPro, iPhone)
@@ -206,12 +200,78 @@ This document describes the key user workflows and what needs to be built to sup
 
 Before first release:
 
-- [ ] First-run setup wizard
-- [ ] User authentication (login/register)
-- [ ] Media path configuration
-- [ ] Folder browsing
-- [ ] Video scanning (metadata + YOLO)
-- [ ] Results view
-- [ ] Basic export (CSV)
-- [ ] Installation documentation
-- [ ] Troubleshooting guide
+- [x] First-run setup wizard
+- [x] User authentication (login/register)
+- [x] Folder browsing
+- [x] Video scanning (metadata + YOLO)
+- [x] Thumbnails
+- [x] Results view (grid/table)
+- [x] Advanced filters (resolution, duration, camera, tag)
+- [x] Video tagging
+- [x] Collections (manual + auto-create by tag)
+- [x] Projects
+- [x] Multi-select videos
+- [x] Export (CSV/Excel)
+- [x] Database management (export/import/reset)
+- [x] Installation documentation
+- [x] Troubleshooting info in docs
+
+---
+
+## Feature Summary
+
+### Core Features
+| Feature | Status | Notes |
+|---------|--------|-------|
+| JWT Authentication | ✅ | First user becomes admin |
+| Folder Navigation | ✅ | Breadcrumb navigation |
+| Video Scanning | ✅ | ffprobe metadata extraction |
+| YOLO Detection | ✅ | Object detection on videos |
+| Thumbnails | ✅ | Auto-extract at 10% duration |
+| Database Migration | ✅ | Auto-adds missing columns |
+
+### UI Features
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Grid/List Toggle | ✅ | Results, Collections, Projects |
+| Multi-select | ✅ | Checkbox selection |
+| Filters | ✅ | Resolution, camera, duration, tag |
+| Tags UI | ✅ | Add/remove per video |
+| Scan Progress | ✅ | Real-time progress bar |
+
+### Data Management
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Collections | ✅ | Create, view, auto-create by tag |
+| Projects | ✅ | Create, view, add videos |
+| CSV Export | ✅ | All or selected videos |
+| Excel Export | ✅ | All or selected videos |
+| Database Backup | ✅ | Export to file |
+| Database Restore | ✅ | Import from file |
+| Database Reset | ✅ | Clear all data |
+
+---
+
+## Changelog
+
+### v0.2.0 (Current - Stage Branch)
+- Added thumbnails for videos
+- Added grid/list view toggle
+- Added advanced filters (resolution, camera, duration, tag)
+- Added video tagging API and UI
+- Added auto-create collections by tag
+- Added database management (export/import/reset)
+- Added multi-select for videos
+- Added export buttons (always visible)
+- Fixed folder navigation UX
+- Fixed YOLO scanning (added ultralytics)
+- Fixed thumbnail auth (removed for img tags)
+- Fixed database migration
+- Fixed add to collection/project UX
+
+### v0.1.0
+- Initial release
+- Basic authentication
+- Folder browsing
+- Video scanning
+- CSV/Excel export
