@@ -929,3 +929,54 @@ def reset_database(
         return {"status": "ok", "message": "Database reset successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to reset database: {str(e)}")
+
+
+
+@app.post("/api/settings/auto-create-collections-by-tag")
+def auto_create_collections_by_tag(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Create collections based on video tags. Videos with matching tags are added to the collection."""
+    videos = db.query(Video).all()
+    
+    # Get all unique tags from all videos
+    all_tags = set()
+    for video in videos:
+        if video.tags:
+            all_tags.update(video.tags)
+    
+    results = []
+    for tag in sorted(all_tags):
+        # Check if collection exists
+        existing = db.query(Collection).filter(Collection.name == tag).first()
+        if existing:
+            collection = existing
+            # Clear existing videos and re-add
+            collection.videos = []
+        else:
+            # Create new collection
+            collection = Collection(name=tag, color="#58a6ff")
+            db.add(collection)
+            db.flush()
+        
+        # Add videos with this tag
+        for video in videos:
+            if video.tags and tag in video.tags:
+                if video not in collection.videos:
+                    collection.videos.append(video)
+        
+        db.commit()
+        db.refresh(collection)
+        
+        results.append({
+            "id": collection.id,
+            "name": collection.name,
+            "video_count": len(collection.videos),
+        })
+    
+    return {
+        "status": "ok",
+        "collections_created": len(results),
+        "collections": results,
+    }

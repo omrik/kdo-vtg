@@ -119,10 +119,16 @@ function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const [scanSettings, setScanSettings] = useState({
+  const [scanSettings, setScanSettings] = useState<{
+    yolo_enabled: boolean
+    sample_interval: number
+    model_name: string
+    afterScan: 'none' | 'createByTag'
+  }>({
     yolo_enabled: false,
     sample_interval: 10,
     model_name: 'yolov8n.pt',
+    afterScan: 'none',
   })
 
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
@@ -542,6 +548,22 @@ function App() {
     }
   }
 
+  const createCollectionsByTag = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/settings/auto-create-collections-by-tag`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      if (res.ok) {
+        const data = await res.json()
+        alert(`Created ${data.collections_created} collections from tags`)
+        fetchCollections()
+      }
+    } catch (err) {
+      setError('Failed to create collections by tag')
+    }
+  }
+
   const fetchProjectVideos = async (projectId: number) => {
     try {
       const res = await fetch(`${API_BASE}/api/projects/${projectId}/videos`, {
@@ -641,6 +663,7 @@ function App() {
     setError(null)
 
     try {
+      const { afterScan, ...scanOptions } = scanSettings
       const res = await fetch(`${API_BASE}/api/scan`, {
         method: 'POST',
         headers: { 
@@ -649,11 +672,29 @@ function App() {
         },
         body: JSON.stringify({
           folder_path: selectedFolder,
-          ...scanSettings,
+          ...scanOptions,
         }),
       })
       const data = await res.json()
-      fetchScanStatus(data.scan_id)
+      const scanId = data.scan_id
+      
+      // Poll for scan completion to trigger afterScan action
+      if (afterScan === 'createByTag') {
+        const pollScan = async () => {
+          const statusRes = await fetch(`${API_BASE}/api/scan/${scanId}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
+          })
+          const statusData = await statusRes.json()
+          if (statusData.status === 'completed') {
+            createCollectionsByTag()
+          } else if (statusData.status === 'running') {
+            setTimeout(pollScan, 2000)
+          }
+        }
+        pollScan()
+      }
+      
+      fetchScanStatus(scanId)
     } catch (err) {
       setError('Failed to start scan')
     } finally {
@@ -923,6 +964,32 @@ function App() {
                     onChange={(e) => setScanSettings({ ...scanSettings, sample_interval: parseInt(e.target.value) })}
                   />
                 </div>
+
+                <div className="form-group">
+                  <label>After Scan</label>
+                  <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <input
+                        type="radio"
+                        name="afterScan"
+                        value="none"
+                        checked={scanSettings.afterScan === 'none'}
+                        onChange={() => setScanSettings({ ...scanSettings, afterScan: 'none' })}
+                      />
+                      Do nothing
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <input
+                        type="radio"
+                        name="afterScan"
+                        value="createByTag"
+                        checked={scanSettings.afterScan === 'createByTag'}
+                        onChange={() => setScanSettings({ ...scanSettings, afterScan: 'createByTag' })}
+                      />
+                      Create collections by tag
+                    </label>
+                  </div>
+                </div>
               </div>
 
               <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.5rem' }}>
@@ -1081,30 +1148,36 @@ function App() {
                 )}
               </div>
 
-              {selectedVideos.size > 0 && (
-                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center', padding: '0.5rem', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
-                  <span>{selectedVideos.size} selected</span>
-                  <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => setShowAddToModal('collection')}>
-                    <FolderPlus size={14} />
-                    Add to Collection
-                  </button>
-                  <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => setShowAddToModal('project')}>
-                    <BriefcaseIcon size={14} />
-                    Add to Project
-                  </button>
-                  <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => exportVideos('csv')}>
-                    <Download size={14} />
-                    CSV
-                  </button>
-                  <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => exportVideos('excel')}>
-                    <Download size={14} />
-                    Excel
-                  </button>
-                  <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => setSelectedVideos(new Set())}>
-                    Clear
-                  </button>
-                </div>
-              )}
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center', padding: '0.5rem', background: 'var(--bg-tertiary)', borderRadius: '6px', flexWrap: 'wrap' }}>
+                {selectedVideos.size > 0 && (
+                  <>
+                    <span>{selectedVideos.size} selected</span>
+                    <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => setShowAddToModal('collection')}>
+                      <FolderPlus size={14} />
+                      Collection
+                    </button>
+                    <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => setShowAddToModal('project')}>
+                      <BriefcaseIcon size={14} />
+                      Project
+                    </button>
+                    <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => setSelectedVideos(new Set())}>
+                      Clear
+                    </button>
+                  </>
+                )}
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+                  {selectedVideos.size === 0 && 'No selection - '}
+                  Export:
+                </span>
+                <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => exportVideos('csv')}>
+                  <Download size={14} />
+                  CSV
+                </button>
+                <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => exportVideos('excel')}>
+                  <Download size={14} />
+                  Excel
+                </button>
+              </div>
 
               {loading ? (
                 <div className="loading">Loading...</div>
@@ -1275,51 +1348,94 @@ function App() {
                   Back
                 </button>
               ) : (
-                <button className="btn btn-primary" onClick={() => setShowNewCollectionModal(true)}>
-                  <Plus size={16} />
-                  New Collection
-                </button>
+                <>
+                  <button className="btn btn-secondary" onClick={createCollectionsByTag}>
+                    <Tag size={14} />
+                    By Tag
+                  </button>
+                  <button className="btn btn-primary" onClick={() => setShowNewCollectionModal(true)}>
+                    <Plus size={16} />
+                    New Collection
+                  </button>
+                </>
               )}
             </div>
 
             {viewingCollection ? (
-              collectionVideos.length === 0 ? (
-                <div className="empty-state">
-                  <Video size={48} />
-                  <p>No videos in this collection.</p>
+              <>
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                  <button className={`btn ${viewMode === 'grid' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setViewMode('grid')}>
+                    <Grid size={16} />
+                  </button>
+                  <button className={`btn ${viewMode === 'list' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setViewMode('list')}>
+                    <List size={16} />
+                  </button>
                 </div>
-              ) : (
-                <div className="table-container">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Filename</th>
-                        <th>Resolution</th>
-                        <th>Duration</th>
-                        <th>Camera</th>
-                        <th>Tags</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {collectionVideos.map((video) => (
-                        <tr key={video.id}>
-                          <td title={video.filepath}>{video.filename}</td>
-                          <td>{video.resolution || '-'}</td>
-                          <td>{formatDuration(video.duration)}</td>
-                          <td>{video.camera_type || '-'}</td>
-                          <td>
-                            <div className="tags-container">
-                              {video.tags?.map((tag, i) => (
-                                <span key={i} className="tag">{tag}</span>
-                              ))}
-                            </div>
-                          </td>
+                {collectionVideos.length === 0 ? (
+                  <div className="empty-state">
+                    <Video size={48} />
+                    <p>No videos in this collection.</p>
+                  </div>
+                ) : viewMode === 'grid' ? (
+                  <div className="video-grid">
+                    {collectionVideos.map((video) => (
+                      <div key={video.id} className="video-card">
+                        <div className="video-thumbnail">
+                          {video.thumbnail ? (
+                            <img src={`${API_BASE}/api/thumbnails/${video.id}`} alt={video.filename} />
+                          ) : (
+                            <div className="no-thumbnail"><Image size={32} /></div>
+                          )}
+                          <div className="video-duration">{formatDuration(video.duration)}</div>
+                        </div>
+                        <div className="video-info">
+                          <div className="video-name" title={video.filename}>{video.filename}</div>
+                          <div className="video-meta">
+                            {video.resolution && <span>{video.resolution}</span>}
+                            {video.camera_type && <span>{video.camera_type}</span>}
+                          </div>
+                          <div className="video-tags">
+                            {video.tags?.slice(0, 3).map((tag, i) => (
+                              <span key={i} className="tag">{tag}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="table-container">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Filename</th>
+                          <th>Resolution</th>
+                          <th>Duration</th>
+                          <th>Camera</th>
+                          <th>Tags</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )
+                      </thead>
+                      <tbody>
+                        {collectionVideos.map((video) => (
+                          <tr key={video.id}>
+                            <td title={video.filepath}>{video.filename}</td>
+                            <td>{video.resolution || '-'}</td>
+                            <td>{formatDuration(video.duration)}</td>
+                            <td>{video.camera_type || '-'}</td>
+                            <td>
+                              <div className="tags-container">
+                                {video.tags?.map((tag, i) => (
+                                  <span key={i} className="tag">{tag}</span>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
             ) : collections.length === 0 ? (
               <div className="empty-state">
                 <Bookmark size={48} />
@@ -1374,43 +1490,80 @@ function App() {
             </div>
 
             {viewingProject ? (
-              projectVideos.length === 0 ? (
-                <div className="empty-state">
-                  <Video size={48} />
-                  <p>No videos in this project.</p>
+              <>
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                  <button className={`btn ${viewMode === 'grid' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setViewMode('grid')}>
+                    <Grid size={16} />
+                  </button>
+                  <button className={`btn ${viewMode === 'list' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setViewMode('list')}>
+                    <List size={16} />
+                  </button>
                 </div>
-              ) : (
-                <div className="table-container">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Filename</th>
-                        <th>Resolution</th>
-                        <th>Duration</th>
-                        <th>Camera</th>
-                        <th>Tags</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {projectVideos.map((video) => (
-                        <tr key={video.id}>
-                          <td title={video.filepath}>{video.filename}</td>
-                          <td>{video.resolution || '-'}</td>
-                          <td>{formatDuration(video.duration)}</td>
-                          <td>{video.camera_type || '-'}</td>
-                          <td>
-                            <div className="tags-container">
-                              {video.tags?.map((tag, i) => (
-                                <span key={i} className="tag">{tag}</span>
-                              ))}
-                            </div>
-                          </td>
+                {projectVideos.length === 0 ? (
+                  <div className="empty-state">
+                    <Video size={48} />
+                    <p>No videos in this project.</p>
+                  </div>
+                ) : viewMode === 'grid' ? (
+                  <div className="video-grid">
+                    {projectVideos.map((video) => (
+                      <div key={video.id} className="video-card">
+                        <div className="video-thumbnail">
+                          {video.thumbnail ? (
+                            <img src={`${API_BASE}/api/thumbnails/${video.id}`} alt={video.filename} />
+                          ) : (
+                            <div className="no-thumbnail"><Image size={32} /></div>
+                          )}
+                          <div className="video-duration">{formatDuration(video.duration)}</div>
+                        </div>
+                        <div className="video-info">
+                          <div className="video-name" title={video.filename}>{video.filename}</div>
+                          <div className="video-meta">
+                            {video.resolution && <span>{video.resolution}</span>}
+                            {video.camera_type && <span>{video.camera_type}</span>}
+                          </div>
+                          <div className="video-tags">
+                            {video.tags?.slice(0, 3).map((tag, i) => (
+                              <span key={i} className="tag">{tag}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="table-container">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Filename</th>
+                          <th>Resolution</th>
+                          <th>Duration</th>
+                          <th>Camera</th>
+                          <th>Tags</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )
+                      </thead>
+                      <tbody>
+                        {projectVideos.map((video) => (
+                          <tr key={video.id}>
+                            <td title={video.filepath}>{video.filename}</td>
+                            <td>{video.resolution || '-'}</td>
+                            <td>{formatDuration(video.duration)}</td>
+                            <td>{video.camera_type || '-'}</td>
+                            <td>
+                              <div className="tags-container">
+                                {video.tags?.map((tag, i) => (
+                                  <span key={i} className="tag">{tag}</span>
+                                ))}
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
             ) : projects.length === 0 ? (
               <div className="empty-state">
                 <Briefcase size={48} />
