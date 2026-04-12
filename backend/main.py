@@ -568,35 +568,43 @@ def get_stats(
     }
 
 
-@app.get("/api/export/csv")
+@app.post("/api/export/csv")
 def export_csv(
+    request: dict = None,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    videos = db.query(Video).all()
+    if request and request.get("video_ids"):
+        videos = db.query(Video).filter(Video.id.in_(request["video_ids"])).all()
+    else:
+        videos = db.query(Video).all()
     
-    csv_content, filename = videos_to_csv(videos)
+    csv_content = videos_to_csv(videos)
     
     return Response(
         content=csv_content,
         media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        headers={"Content-Disposition": "attachment; filename=videos.csv"}
     )
 
 
-@app.get("/api/export/excel")
+@app.post("/api/export/excel")
 def export_excel(
+    request: dict = None,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    videos = db.query(Video).all()
+    if request and request.get("video_ids"):
+        videos = db.query(Video).filter(Video.id.in_(request["video_ids"])).all()
+    else:
+        videos = db.query(Video).all()
     
-    excel_content, filename = videos_to_excel(videos)
+    excel_content = videos_to_excel(videos)
     
     return Response(
         content=excel_content,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f"attachment; filename={filename}"}
+        headers={"Content-Disposition": "attachment; filename=videos.xlsx"}
     )
 
 
@@ -658,10 +666,107 @@ def list_projects(
                 "description": p.description,
                 "status": p.status,
                 "created_at": p.created_at.isoformat() if p.created_at else None,
+                "video_count": len(p.videos) if hasattr(p, 'videos') else 0,
             }
             for p in projects
         ]
     }
+
+
+@app.post("/api/collections/{collection_id}/videos")
+def add_video_to_collection(
+    collection_id: int,
+    request: dict,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    collection = db.query(Collection).filter(Collection.id == collection_id).first()
+    if not collection:
+        raise HTTPException(status_code=404, detail="Collection not found")
+    
+    video_id = request.get("video_id")
+    if not video_id:
+        raise HTTPException(status_code=400, detail="video_id required")
+    
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    if video not in collection.videos:
+        collection.videos.append(video)
+        db.commit()
+    
+    return {"status": "ok", "video_count": len(collection.videos)}
+
+
+@app.delete("/api/collections/{collection_id}/videos/{video_id}")
+def remove_video_from_collection(
+    collection_id: int,
+    video_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    collection = db.query(Collection).filter(Collection.id == collection_id).first()
+    if not collection:
+        raise HTTPException(status_code=404, detail="Collection not found")
+    
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    if video in collection.videos:
+        collection.videos.remove(video)
+        db.commit()
+    
+    return {"status": "ok"}
+
+
+@app.post("/api/projects/{project_id}/videos")
+def add_video_to_project(
+    project_id: int,
+    request: dict,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    video_id = request.get("video_id")
+    if not video_id:
+        raise HTTPException(status_code=400, detail="video_id required")
+    
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    if video not in project.videos:
+        project.videos.append(video)
+        db.commit()
+    
+    return {"status": "ok", "video_count": len(project.videos)}
+
+
+@app.delete("/api/projects/{project_id}/videos/{video_id}")
+def remove_video_from_project(
+    project_id: int,
+    video_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    if video in project.videos:
+        project.videos.remove(video)
+        db.commit()
+    
+    return {"status": "ok"}
 
 
 @app.post("/api/projects")

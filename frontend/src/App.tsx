@@ -15,6 +15,12 @@ import {
   LogOut,
   LogIn,
   Plus,
+  Grid,
+  List,
+  Download,
+  Image,
+  FolderPlus,
+  BriefcaseIcon,
 } from 'lucide-react'
 
 interface User {
@@ -53,6 +59,7 @@ interface VideoItem {
   tags: string[] | null
   yolo_enabled: boolean
   created_at: string
+  thumbnail: string | null
 }
 
 interface ScanJob {
@@ -126,6 +133,17 @@ function App() {
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [editingVideo, setEditingVideo] = useState<VideoItem | null>(null)
   const [newTagInput, setNewTagInput] = useState('')
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
+  const [selectedVideos, setSelectedVideos] = useState<Set<number>>(new Set())
+  const [showAddToModal, setShowAddToModal] = useState<'collection' | 'project' | null>(null)
+  const [addToVideoId, setAddToVideoId] = useState<number | null>(null)
+  const [filters, setFilters] = useState({
+    resolution: '',
+    camera: '',
+    minDuration: '',
+    maxDuration: '',
+    search: '',
+  })
 
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [showNewCollectionModal, setShowNewCollectionModal] = useState(false)
@@ -273,12 +291,16 @@ function App() {
   const fetchVideos = async (folderPath?: string) => {
     setLoading(true)
     try {
-      let url = folderPath
-        ? `${API_BASE}/api/videos?folder_path=${encodeURIComponent(folderPath)}`
-        : `${API_BASE}/api/videos`
-      if (selectedTag) {
-        url += `${folderPath ? '&' : '?'}tag=${encodeURIComponent(selectedTag)}`
-      }
+      const params = new URLSearchParams()
+      if (folderPath) params.set('folder_path', folderPath)
+      if (selectedTag) params.set('tag', selectedTag)
+      if (filters.resolution) params.set('resolution', filters.resolution)
+      if (filters.camera) params.set('camera_type', filters.camera)
+      if (filters.minDuration) params.set('min_duration', filters.minDuration)
+      if (filters.maxDuration) params.set('max_duration', filters.maxDuration)
+      if (filters.search) params.set('search', filters.search)
+      
+      const url = `${API_BASE}/api/videos${params.toString() ? '?' + params.toString() : ''}`
       const res = await fetch(url, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       })
@@ -391,6 +413,83 @@ function App() {
     } catch (err) {
       console.error('Failed to fetch projects')
     }
+  }
+
+  const addToCollection = async (videoId: number, collectionId: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/collections/${collectionId}/videos`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ video_id: videoId }),
+      })
+      if (res.ok) {
+        fetchCollections()
+        setShowAddToModal(null)
+        setAddToVideoId(null)
+      }
+    } catch (err) {
+      setError('Failed to add video to collection')
+    }
+  }
+
+  const addToProject = async (videoId: number, projectId: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/projects/${projectId}/videos`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ video_id: videoId }),
+      })
+      if (res.ok) {
+        fetchProjects()
+        setShowAddToModal(null)
+        setAddToVideoId(null)
+      }
+    } catch (err) {
+      setError('Failed to add video to project')
+    }
+  }
+
+  const exportVideos = async (format: 'csv' | 'excel') => {
+    const videoIds = selectedVideos.size > 0 ? Array.from(selectedVideos) : videos.map(v => v.id)
+    try {
+      const res = await fetch(`${API_BASE}/api/export/${format}`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ video_ids: videoIds }),
+      })
+      if (res.ok) {
+        const blob = await res.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `videos.${format === 'excel' ? 'xlsx' : 'csv'}`
+        document.body.appendChild(a)
+        a.click()
+        window.URL.revokeObjectURL(url)
+        document.body.removeChild(a)
+      }
+    } catch (err) {
+      setError('Failed to export videos')
+    }
+  }
+
+  const toggleVideoSelection = (videoId: number) => {
+    const newSelected = new Set(selectedVideos)
+    if (newSelected.has(videoId)) {
+      newSelected.delete(videoId)
+    } else {
+      newSelected.add(videoId)
+    }
+    setSelectedVideos(newSelected)
   }
 
   const createCollection = async () => {
@@ -774,22 +873,86 @@ function App() {
                 <h2 className="card-title">
                   <FileVideo size={20} />
                   Video Results
+                  <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginLeft: '0.5rem' }}>
+                    ({videos.length} videos)
+                  </span>
                 </h2>
-                <button className="btn btn-secondary" onClick={() => fetchVideos(selectedFolder || undefined)}>
-                  <RefreshCw size={16} />
-                </button>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button className="btn btn-secondary" onClick={() => fetchVideos(selectedFolder || undefined)}>
+                    <RefreshCw size={16} />
+                  </button>
+                  <button 
+                    className={`btn ${viewMode === 'grid' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setViewMode('grid')}
+                  >
+                    <Grid size={16} />
+                  </button>
+                  <button 
+                    className={`btn ${viewMode === 'list' ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setViewMode('list')}
+                  >
+                    <List size={16} />
+                  </button>
+                </div>
               </div>
 
-              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', alignItems: 'center' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem', alignItems: 'flex-end' }}>
+                <div className="form-group" style={{ margin: 0, minWidth: '120px' }}>
+                  <label style={{ fontSize: '0.7rem' }}>Resolution</label>
+                  <select 
+                    value={filters.resolution} 
+                    onChange={(e) => setFilters({...filters, resolution: e.target.value})}
+                  >
+                    <option value="">All</option>
+                    {stats?.resolutions.map(r => (
+                      <option key={r.resolution} value={r.resolution}>{r.resolution}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group" style={{ margin: 0, minWidth: '100px' }}>
+                  <label style={{ fontSize: '0.7rem' }}>Camera</label>
+                  <select 
+                    value={filters.camera} 
+                    onChange={(e) => setFilters({...filters, camera: e.target.value})}
+                  >
+                    <option value="">All</option>
+                    {stats?.cameras.map(c => (
+                      <option key={c.camera} value={c.camera}>{c.camera}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group" style={{ margin: 0, width: '80px' }}>
+                  <label style={{ fontSize: '0.7rem' }}>Min Dur</label>
+                  <input 
+                    type="number" 
+                    placeholder="sec"
+                    value={filters.minDuration} 
+                    onChange={(e) => setFilters({...filters, minDuration: e.target.value})}
+                  />
+                </div>
+                <div className="form-group" style={{ margin: 0, width: '80px' }}>
+                  <label style={{ fontSize: '0.7rem' }}>Max Dur</label>
+                  <input 
+                    type="number" 
+                    placeholder="sec"
+                    value={filters.maxDuration} 
+                    onChange={(e) => setFilters({...filters, maxDuration: e.target.value})}
+                  />
+                </div>
                 <div className="form-group" style={{ margin: 0, flex: 1 }}>
-                  <label style={{ fontSize: '0.75rem' }}>Filter by Tag</label>
+                  <label style={{ fontSize: '0.7rem' }}>Search</label>
+                  <input 
+                    type="text" 
+                    placeholder="Search filename..."
+                    value={filters.search} 
+                    onChange={(e) => setFilters({...filters, search: e.target.value})}
+                  />
+                </div>
+                <div className="form-group" style={{ margin: 0, minWidth: '120px' }}>
+                  <label style={{ fontSize: '0.7rem' }}>Tag</label>
                   <select 
                     value={selectedTag || ''} 
-                    onChange={(e) => {
-                      setSelectedTag(e.target.value || null)
-                      fetchVideos(selectedFolder || undefined)
-                    }}
-                    style={{ width: '100%' }}
+                    onChange={(e) => setSelectedTag(e.target.value || null)}
                   >
                     <option value="">All Tags</option>
                     {allTags.map(tag => (
@@ -797,38 +960,154 @@ function App() {
                     ))}
                   </select>
                 </div>
-                {selectedTag && (
-                  <button className="btn btn-secondary" onClick={() => { setSelectedTag(null); fetchVideos(selectedFolder || undefined) }}>
+                <button className="btn btn-primary" onClick={() => fetchVideos(selectedFolder || undefined)}>
+                  Filter
+                </button>
+                {(filters.resolution || filters.camera || filters.minDuration || filters.maxDuration || filters.search || selectedTag) && (
+                  <button className="btn btn-secondary" onClick={() => {
+                    setFilters({ resolution: '', camera: '', minDuration: '', maxDuration: '', search: '' })
+                    setSelectedTag(null)
+                    fetchVideos(selectedFolder || undefined)
+                  }}>
                     <X size={14} />
-                    Clear Filter
+                    Clear
                   </button>
                 )}
               </div>
+
+              {selectedVideos.size > 0 && (
+                <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'center', padding: '0.5rem', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
+                  <span>{selectedVideos.size} selected</span>
+                  <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => setShowAddToModal('collection')}>
+                    <FolderPlus size={14} />
+                    Add to Collection
+                  </button>
+                  <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => setShowAddToModal('project')}>
+                    <BriefcaseIcon size={14} />
+                    Add to Project
+                  </button>
+                  <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => exportVideos('csv')}>
+                    <Download size={14} />
+                    CSV
+                  </button>
+                  <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => exportVideos('excel')}>
+                    <Download size={14} />
+                    Excel
+                  </button>
+                  <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => setSelectedVideos(new Set())}>
+                    Clear
+                  </button>
+                </div>
+              )}
 
               {loading ? (
                 <div className="loading">Loading...</div>
               ) : videos.length === 0 ? (
                 <div className="empty-state">
                   <FileVideo size={48} />
-                  <p>No videos scanned yet. Go to the Scan tab to start scanning.</p>
+                  <p>No videos found. Scan a folder or adjust filters.</p>
+                </div>
+              ) : viewMode === 'grid' ? (
+                <div className="video-grid">
+                  {videos.map((video) => (
+                    <div key={video.id} className="video-card" onClick={() => toggleVideoSelection(video.id)}>
+                      <input 
+                        type="checkbox" 
+                        checked={selectedVideos.has(video.id)}
+                        onChange={() => toggleVideoSelection(video.id)}
+                        style={{ position: 'absolute', top: '8px', left: '8px', zIndex: 2 }}
+                      />
+                      <div className="video-thumbnail">
+                        {video.thumbnail ? (
+                          <img src={`${API_BASE}/api/thumbnails/${video.id}`} alt={video.filename} />
+                        ) : (
+                          <div className="no-thumbnail">
+                            <Image size={32} />
+                          </div>
+                        )}
+                        <div className="video-duration">{formatDuration(video.duration)}</div>
+                        {video.yolo_enabled && (
+                          <div className="yolo-badge">YOLO</div>
+                        )}
+                      </div>
+                      <div className="video-info">
+                        <div className="video-name" title={video.filename}>{video.filename}</div>
+                        <div className="video-meta">
+                          {video.resolution && <span>{video.resolution}</span>}
+                          {video.camera_type && <span>{video.camera_type}</span>}
+                        </div>
+                        <div className="video-tags">
+                          {video.tags?.slice(0, 3).map((tag, i) => (
+                            <span key={i} className="tag" onClick={(e) => { e.stopPropagation(); removeTagFromVideo(video.id, tag) }}>
+                              {tag} <X size={10} />
+                            </span>
+                          ))}
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ padding: '2px 4px', fontSize: '0.65rem' }}
+                            onClick={(e) => { e.stopPropagation(); setEditingVideo(video) }}
+                          >
+                            <Plus size={10} />
+                          </button>
+                        </div>
+                        <div className="video-actions">
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ fontSize: '0.7rem', padding: '2px 6px' }}
+                            onClick={(e) => { e.stopPropagation(); setAddToVideoId(video.id); setShowAddToModal('collection') }}
+                          >
+                            <FolderPlus size={12} />
+                          </button>
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ fontSize: '0.7rem', padding: '2px 6px' }}
+                            onClick={(e) => { e.stopPropagation(); setAddToVideoId(video.id); setShowAddToModal('project') }}
+                          >
+                            <BriefcaseIcon size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <div className="table-container">
                   <table>
                     <thead>
                       <tr>
+                        <th style={{ width: '30px' }}></th>
                         <th>Filename</th>
+                        <th>Thumb</th>
                         <th>Resolution</th>
                         <th>Duration</th>
                         <th>FPS</th>
                         <th>Camera</th>
                         <th>Tags</th>
+                        <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {videos.map((video) => (
                         <tr key={video.id}>
+                          <td>
+                            <input 
+                              type="checkbox" 
+                              checked={selectedVideos.has(video.id)}
+                              onChange={() => toggleVideoSelection(video.id)}
+                            />
+                          </td>
                           <td title={video.filepath}>{video.filename}</td>
+                          <td>
+                            {video.thumbnail ? (
+                              <img 
+                                src={`${API_BASE}/api/thumbnails/${video.id}`} 
+                                alt="" 
+                                style={{ width: '60px', height: '34px', objectFit: 'cover', borderRadius: '4px' }}
+                              />
+                            ) : (
+                              <Image size={20} style={{ opacity: 0.5 }} />
+                            )}
+                          </td>
                           <td>{video.resolution || '-'}</td>
                           <td>{formatDuration(video.duration)}</td>
                           <td>{video.fps ? video.fps.toFixed(1) : '-'}</td>
@@ -846,6 +1125,24 @@ function App() {
                                 onClick={() => setEditingVideo(video)}
                               >
                                 <Plus size={12} />
+                              </button>
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              <button 
+                                className="btn btn-secondary" 
+                                style={{ padding: '4px', fontSize: '0.7rem' }}
+                                onClick={() => { setAddToVideoId(video.id); setShowAddToModal('collection') }}
+                              >
+                                <FolderPlus size={12} />
+                              </button>
+                              <button 
+                                className="btn btn-secondary" 
+                                style={{ padding: '4px', fontSize: '0.7rem' }}
+                                onClick={() => { setAddToVideoId(video.id); setShowAddToModal('project') }}
+                              >
+                                <BriefcaseIcon size={12} />
                               </button>
                             </div>
                           </td>
@@ -1156,6 +1453,68 @@ function App() {
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
               <button className="btn btn-secondary" onClick={() => { setEditingVideo(null); setNewTagInput('') }}>
                 Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddToModal && (
+        <div className="modal-overlay" onClick={() => { setShowAddToModal(null); setAddToVideoId(null) }}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Add to {showAddToModal === 'collection' ? 'Collection' : 'Project'}</h2>
+            {showAddToModal === 'collection' ? (
+              collections.length === 0 ? (
+                <div>
+                  <p style={{ color: 'var(--text-secondary)' }}>No collections yet.</p>
+                  <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={() => setShowNewCollectionModal(true)}>
+                    <Plus size={14} />
+                    Create Collection
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {collections.map(col => (
+                    <button 
+                      key={col.id} 
+                      className="btn btn-secondary" 
+                      style={{ justifyContent: 'flex-start' }}
+                      onClick={() => addToCollection(addToVideoId!, col.id)}
+                    >
+                      <Bookmark size={14} style={{ color: col.color }} />
+                      {col.name} ({col.video_count} videos)
+                    </button>
+                  ))}
+                </div>
+              )
+            ) : (
+              projects.length === 0 ? (
+                <div>
+                  <p style={{ color: 'var(--text-secondary)' }}>No projects yet.</p>
+                  <button className="btn btn-primary" style={{ marginTop: '1rem' }} onClick={() => setShowNewProjectModal(true)}>
+                    <Plus size={14} />
+                    Create Project
+                  </button>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {projects.map(proj => (
+                    <button 
+                      key={proj.id} 
+                      className="btn btn-secondary" 
+                      style={{ justifyContent: 'flex-start' }}
+                      onClick={() => addToProject(addToVideoId!, proj.id)}
+                    >
+                      <Briefcase size={14} />
+                      {proj.name} ({proj.video_count} videos)
+                    </button>
+                  ))}
+                </div>
+              )
+            )}
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+              <button className="btn btn-secondary" onClick={() => { setShowAddToModal(null); setAddToVideoId(null) }}>
+                Cancel
               </button>
             </div>
           </div>
