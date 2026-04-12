@@ -980,3 +980,38 @@ def auto_create_collections_by_tag(
         "collections_created": len(results),
         "collections": results,
     }
+
+
+@app.delete("/api/collections/{collection_id}")
+def delete_collection(
+    collection_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Delete a collection."""
+    collection = db.query(Collection).filter(Collection.id == collection_id).first()
+    if not collection:
+        raise HTTPException(status_code=404, detail="Collection not found")
+    
+    db.delete(collection)
+    db.commit()
+    
+    return {"status": "ok", "message": f"Collection '{collection.name}' deleted"}
+
+
+@app.delete("/api/projects/{project_id}")
+def delete_project(
+    project_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Delete a project."""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    db.delete(project)
+    db.commit()
+    
+    return {"status": "ok", "message": f"Project '{project.name}' deleted"}
+

@@ -199,6 +199,13 @@ function App() {
     }
   }, [token])
 
+  // Fetch videos when Results tab becomes active
+  useEffect(() => {
+    if (activeTab === 'results' && token) {
+      fetchVideos()
+    }
+  }, [activeTab, token])
+
   const checkSetupStatus = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/auth/setup-status`)
@@ -562,6 +569,38 @@ function App() {
       }
     } catch (err) {
       setError('Failed to create collections by tag')
+    }
+  }
+
+  const deleteCollection = async (id: number) => {
+    if (!window.confirm('Delete this collection?')) return
+    try {
+      const res = await fetch(`${API_BASE}/api/collections/${id}`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      if (res.ok) {
+        fetchCollections()
+        setViewingCollection(null)
+      }
+    } catch (err) {
+      setError('Failed to delete collection')
+    }
+  }
+
+  const deleteProject = async (id: number) => {
+    if (!window.confirm('Delete this project?')) return
+    try {
+      const res = await fetch(`${API_BASE}/api/projects/${id}`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      if (res.ok) {
+        fetchProjects()
+        setViewingProject(null)
+      }
+    } catch (err) {
+      setError('Failed to delete project')
     }
   }
 
@@ -1373,7 +1412,11 @@ function App() {
         {activeTab === 'collections' && (
           <div className="card">
             <div className="card-header">
-              <h2 className="card-title">
+              <h2 
+                className="card-title" 
+                style={{ cursor: viewingCollection ? 'pointer' : 'default' }}
+                onClick={() => viewingCollection && setViewingCollection(null)}
+              >
                 <Bookmark size={20} />
                 {viewingCollection ? viewingCollection.name : 'Collections'}
               </h2>
@@ -1483,11 +1526,20 @@ function App() {
                     key={col.id} 
                     className="folder-card" 
                     style={{ borderLeft: `4px solid ${col.color}`, cursor: 'pointer' }}
-                    onClick={() => { setViewingCollection(col); fetchCollectionVideos(col.id) }}
                   >
-                    <div className="folder-name">
-                      <Bookmark size={20} style={{ color: col.color }} />
-                      {col.name}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div className="folder-name" onClick={() => { setViewingCollection(col); fetchCollectionVideos(col.id) }}>
+                        <Bookmark size={20} style={{ color: col.color }} />
+                        {col.name}
+                      </div>
+                      <button 
+                        className="btn-icon" 
+                        onClick={(e) => { e.stopPropagation(); deleteCollection(col.id) }}
+                        style={{ color: 'var(--text-secondary)', padding: '0.25rem' }}
+                        title="Delete collection"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                     <div className="folder-info">
                       {col.video_count} videos
@@ -1507,7 +1559,11 @@ function App() {
         {activeTab === 'projects' && (
           <div className="card">
             <div className="card-header">
-              <h2 className="card-title">
+              <h2 
+                className="card-title" 
+                style={{ cursor: viewingProject ? 'pointer' : 'default' }}
+                onClick={() => viewingProject && setViewingProject(null)}
+              >
                 <Briefcase size={20} />
                 {viewingProject ? viewingProject.name : 'Projects'}
               </h2>
@@ -1610,12 +1666,20 @@ function App() {
                   <div 
                     key={proj.id} 
                     className="folder-card"
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => { setViewingProject(proj); fetchProjectVideos(proj.id) }}
                   >
-                    <div className="folder-name">
-                      <Briefcase size={20} />
-                      {proj.name}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div className="folder-name" onClick={() => { setViewingProject(proj); fetchProjectVideos(proj.id) }}>
+                        <Briefcase size={20} />
+                        {proj.name}
+                      </div>
+                      <button 
+                        className="btn-icon" 
+                        onClick={(e) => { e.stopPropagation(); deleteProject(proj.id) }}
+                        style={{ color: 'var(--text-secondary)', padding: '0.25rem' }}
+                        title="Delete project"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                     <div className="folder-info">
                       {proj.video_count} videos
