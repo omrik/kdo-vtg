@@ -23,6 +23,8 @@ import {
   Image,
   FolderPlus,
   BriefcaseIcon,
+  Star,
+  Copy,
 } from 'lucide-react'
 
 interface User {
@@ -59,9 +61,51 @@ interface VideoItem {
   date_created: string | null
   file_size: number | null
   tags: string[] | null
+  scenes: Scene[] | null
+  shot_types: ShotTypeInfo | null
+  color_palette: ColorInfo[] | null
+  gps_data: GpsInfo | null
+  rating: number | null
   yolo_enabled: boolean
+  scene_detection_enabled: boolean
   created_at: string
   thumbnail: string | null
+}
+
+interface ShotTypeInfo {
+  dominant_shot: string
+  counts: { WS: number; MS: number; CU: number; ECU: number }
+  total_analyzed: number
+}
+
+interface ColorInfo {
+  rgb: number[]
+  hex: string
+  percentage: number
+}
+
+interface GpsInfo {
+  latitude: number
+  longitude: number
+  altitude?: number
+}
+
+interface DuplicateInfo {
+  original: { id: number; filepath: string; filename: string }
+  duplicate: { id: number; filepath: string; filename: string }
+  filename: string
+  duration: number | null
+  resolution: string | null
+  file_size: number | null
+}
+
+interface Scene {
+  start_frame: number
+  end_frame: number
+  start_time: number
+  end_time: number
+  duration: number
+  timestamp: number
 }
 
 interface ScanJob {
@@ -104,7 +148,7 @@ interface Project {
   created_at: string
 }
 
-type Tab = 'folders' | 'scan' | 'results' | 'collections' | 'projects' | 'settings'
+type Tab = 'folders' | 'scan' | 'results' | 'collections' | 'projects' | 'duplicates' | 'settings'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -121,11 +165,17 @@ function App() {
 
   const [scanSettings, setScanSettings] = useState<{
     yolo_enabled: boolean
+    scene_detection_enabled: boolean
+    shot_type_enabled: boolean
+    color_palette_enabled: boolean
     sample_interval: number
     model_name: string
     afterScan: 'none' | 'createByTag'
   }>({
     yolo_enabled: false,
+    scene_detection_enabled: false,
+    shot_type_enabled: false,
+    color_palette_enabled: false,
     sample_interval: 10,
     model_name: 'yolov8n.pt',
     afterScan: 'none',
@@ -137,6 +187,7 @@ function App() {
 
   const [collections, setCollections] = useState<Collection[]>([])
   const [projects, setProjects] = useState<Project[]>([])
+  const [duplicates, setDuplicates] = useState<DuplicateInfo[]>([])
   const [allTags, setAllTags] = useState<string[]>([])
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [editingVideo, setEditingVideo] = useState<VideoItem | null>(null)
@@ -450,6 +501,25 @@ function App() {
     }
   }
 
+  const rateVideo = async (videoId: number, rating: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/videos/${videoId}/rating`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ rating }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setVideos(videos.map(v => v.id === videoId ? { ...v, rating: data.rating } : v))
+      }
+    } catch (err) {
+      setError('Failed to rate video')
+    }
+  }
+
   const fetchStats = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/stats`, {
@@ -501,6 +571,18 @@ function App() {
       setProjects(data.projects || [])
     } catch (err) {
       console.error('Failed to fetch projects')
+    }
+  }
+
+  const fetchDuplicates = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/videos/duplicates`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      const data = await res.json()
+      setDuplicates(data.duplicates || [])
+    } catch (err) {
+      console.error('Failed to fetch duplicates')
     }
   }
 
@@ -616,7 +698,77 @@ function App() {
     }
   }
 
-  const exportVideos = async (format: 'csv' | 'excel') => {
+  const batchAddTag = async (tag: string) => {
+    const videoIds = Array.from(selectedVideos)
+    if (videoIds.length === 0) return
+    try {
+      const res = await fetch(`${API_BASE}/api/videos/batch/add-tag`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ video_ids: videoIds, tag }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        fetchVideos()
+        setSelectedVideos(new Set())
+        alert(`Added tag "${tag}" to ${data.updated} videos`)
+      }
+    } catch (err) {
+      setError('Failed to add tag')
+    }
+  }
+
+  const batchRemoveTag = async (tag: string) => {
+    const videoIds = Array.from(selectedVideos)
+    if (videoIds.length === 0) return
+    try {
+      const res = await fetch(`${API_BASE}/api/videos/batch/remove-tag`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ video_ids: videoIds, tag }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        fetchVideos()
+        setSelectedVideos(new Set())
+        alert(`Removed tag "${tag}" from ${data.updated} videos`)
+      }
+    } catch (err) {
+      setError('Failed to remove tag')
+    }
+  }
+
+  const batchDelete = async () => {
+    const videoIds = Array.from(selectedVideos)
+    if (videoIds.length === 0) return
+    if (!window.confirm(`Delete ${videoIds.length} videos?`)) return
+    try {
+      const res = await fetch(`${API_BASE}/api/videos/batch/delete`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ video_ids: videoIds }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        fetchVideos()
+        setSelectedVideos(new Set())
+        alert(`Deleted ${data.deleted} videos`)
+      }
+    } catch (err) {
+      setError('Failed to delete videos')
+    }
+  }
+
+  const exportVideos = async (format: 'csv' | 'excel' | 'edl' | 'pdf') => {
     const videoIds = selectedVideos.size > 0 ? Array.from(selectedVideos) : videos.map(v => v.id)
     try {
       const res = await fetch(`${API_BASE}/api/export/${format}`, {
@@ -632,7 +784,7 @@ function App() {
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `videos.${format === 'excel' ? 'xlsx' : 'csv'}`
+        a.download = `videos.${format === 'excel' ? 'xlsx' : format}`
         document.body.appendChild(a)
         a.click()
         window.URL.revokeObjectURL(url)
@@ -782,6 +934,7 @@ function App() {
     { id: 'results', label: 'Results', icon: FileVideo },
     { id: 'collections', label: 'Collections', icon: Bookmark },
     { id: 'projects', label: 'Projects', icon: Briefcase },
+    { id: 'duplicates', label: 'Duplicates', icon: Copy },
     { id: 'settings', label: 'Settings', icon: Settings },
   ]
 
@@ -1007,6 +1160,36 @@ function App() {
                   <label htmlFor="yolo_enabled">Enable Object Detection (YOLO)</label>
                 </div>
 
+                <div className="form-group checkbox-group">
+                  <input
+                    type="checkbox"
+                    id="scene_detection_enabled"
+                    checked={scanSettings.scene_detection_enabled}
+                    onChange={(e) => setScanSettings({ ...scanSettings, scene_detection_enabled: e.target.checked })}
+                  />
+                  <label htmlFor="scene_detection_enabled">Enable Scene Detection</label>
+                </div>
+
+                <div className="form-group checkbox-group">
+                  <input
+                    type="checkbox"
+                    id="shot_type_enabled"
+                    checked={scanSettings.shot_type_enabled}
+                    onChange={(e) => setScanSettings({ ...scanSettings, shot_type_enabled: e.target.checked })}
+                  />
+                  <label htmlFor="shot_type_enabled">Enable Shot Type Analysis (requires YOLO)</label>
+                </div>
+
+                <div className="form-group checkbox-group">
+                  <input
+                    type="checkbox"
+                    id="color_palette_enabled"
+                    checked={scanSettings.color_palette_enabled}
+                    onChange={(e) => setScanSettings({ ...scanSettings, color_palette_enabled: e.target.checked })}
+                  />
+                  <label htmlFor="color_palette_enabled">Enable Color Palette Extraction</label>
+                </div>
+
                 <div className="form-group">
                   <label htmlFor="sample_interval">Sample Interval (seconds)</label>
                   <input
@@ -1230,6 +1413,24 @@ function App() {
                       <BriefcaseIcon size={14} />
                       Project
                     </button>
+                    <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => {
+                      const tag = window.prompt('Enter tag to add:')
+                      if (tag) batchAddTag(tag)
+                    }}>
+                      <Tag size={14} />
+                      Add Tag
+                    </button>
+                    <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => {
+                      const tag = window.prompt('Enter tag to remove:')
+                      if (tag) batchRemoveTag(tag)
+                    }}>
+                      <X size={14} />
+                      Remove Tag
+                    </button>
+                    <button className="btn btn-danger" style={{ fontSize: '0.75rem' }} onClick={batchDelete}>
+                      <Trash2 size={14} />
+                      Delete
+                    </button>
                     <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => setSelectedVideos(new Set())}>
                       Clear
                     </button>
@@ -1246,6 +1447,14 @@ function App() {
                 <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => exportVideos('excel')}>
                   <Download size={14} />
                   Excel
+                </button>
+                <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => exportVideos('edl')} title="Export as EDL for Premiere/DaVinci">
+                  <Download size={14} />
+                  EDL
+                </button>
+                <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => exportVideos('pdf')} title="Export as PDF shot list">
+                  <Download size={14} />
+                  PDF
                 </button>
               </div>
 
@@ -1281,6 +1490,23 @@ function App() {
                       </div>
                       <div className="video-info">
                         <div className="video-name" title={video.filename}>{video.filename}</div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginBottom: '0.25rem' }}>
+                          {[1, 2, 3, 4, 5].map(star => (
+                            <Star
+                              key={star}
+                              size={12}
+                              fill={video.rating && star <= video.rating ? 'var(--warning)' : 'none'}
+                              color={video.rating && star <= video.rating ? 'var(--warning)' : 'var(--text-secondary)'}
+                              style={{ cursor: 'pointer' }}
+                              onClick={(e) => { e.stopPropagation(); rateVideo(video.id, star) }}
+                            />
+                          ))}
+                          {video.rating && (
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginLeft: '4px' }}>
+                              {video.rating}/5
+                            </span>
+                          )}
+                        </div>
                         <div className="video-meta">
                           {video.resolution && <span>{video.resolution}</span>}
                           {video.camera_type && <span>{video.camera_type}</span>}
@@ -1696,6 +1922,84 @@ function App() {
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'duplicates' && (
+          <div className="card">
+            <div className="card-header">
+              <h2 className="card-title">
+                <Copy size={20} />
+                Duplicate Detection
+              </h2>
+              <button className="btn btn-secondary" onClick={fetchDuplicates}>
+                <RefreshCw size={16} />
+                Find Duplicates
+              </button>
+            </div>
+
+            {duplicates.length === 0 ? (
+              <div className="empty-state">
+                <Copy size={48} />
+                <p>No duplicates found. Click "Find Duplicates" to scan.</p>
+              </div>
+            ) : (
+              <div>
+                <p style={{ marginBottom: '1rem', color: 'var(--text-secondary)' }}>
+                  Found {duplicates.length} potential duplicate{duplicates.length !== 1 ? 's' : ''}.
+                  Review and delete the unwanted copies.
+                </p>
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Filename</th>
+                        <th>Duration</th>
+                        <th>Resolution</th>
+                        <th>Size</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {duplicates.map((dup, idx) => (
+                        <tr key={idx}>
+                          <td title={dup.filename}>{dup.filename}</td>
+                          <td>{dup.duration ? formatDuration(dup.duration) : '-'}</td>
+                          <td>{dup.resolution || '-'}</td>
+                          <td>{dup.file_size ? `${(dup.file_size / 1024 / 1024 / 1024).toFixed(2)} GB` : '-'}</td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                              <button 
+                                className="btn btn-secondary" 
+                                style={{ fontSize: '0.75rem', padding: '2px 8px' }}
+                                onClick={() => window.open(`file://${dup.duplicate.filepath}`, '_blank')}
+                                title="Open duplicate"
+                              >
+                                Open
+                              </button>
+                              <button 
+                                className="btn btn-danger" 
+                                style={{ fontSize: '0.75rem', padding: '2px 8px' }}
+                                onClick={() => {
+                                  if (window.confirm('Delete this duplicate?')) {
+                                    fetch(`${API_BASE}/api/videos/${dup.duplicate.id}`, {
+                                      method: 'DELETE',
+                                      headers: token ? { Authorization: `Bearer ${token}` } : {}
+                                    }).then(() => fetchDuplicates())
+                                  }
+                                }}
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>

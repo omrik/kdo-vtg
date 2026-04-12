@@ -22,7 +22,8 @@ RUN pip install --no-cache-dir --break-system-packages \
     passlib==1.7.4 \
     bcrypt==4.0.1 \
     openpyxl \
-    ultralytics
+    ultralytics \
+    reportlab
 
 COPY backend/ ./backend/
 

@@ -7,3 +7,4 @@ opencv-python-headless>=4.9.0
 supervision>=0.21.0
 python-multipart>=0.0.6
 openpyxl>=3.1.2
+reportlab>=4.0.0

@@ -1,7 +1,9 @@
 import os
+import datetime
 from contextlib import asynccontextmanager
 from typing import Optional, List
 from pathlib import Path
+from io import BytesIO
 
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -144,6 +146,9 @@ class ScanRequest(BaseModel):
     yolo_enabled: bool = False
     sample_interval: int = 10
     model_name: str = "yolov8n.pt"
+    scene_detection_enabled: bool = False
+    shot_type_enabled: bool = False
+    color_palette_enabled: bool = False
 
 
 class VideoResponse(BaseModel):
@@ -161,7 +166,13 @@ class VideoResponse(BaseModel):
     date_created: Optional[str]
     file_size: Optional[int]
     tags: Optional[list]
+    scenes: Optional[list]
+    shot_types: Optional[dict]
+    color_palette: Optional[list]
+    gps_data: Optional[dict]
+    rating: Optional[int]
     yolo_enabled: bool
+    scene_detection_enabled: bool
     created_at: str
 
     class Config:
@@ -219,7 +230,7 @@ class ProjectResponse(BaseModel):
         from_attributes = True
 
 
-def scan_task(db_url: str, scan_id: int, folder_path: str, yolo_enabled: bool, sample_interval: int, model_name: str):
+def scan_task(db_url: str, scan_id: int, folder_path: str, yolo_enabled: bool, sample_interval: int, model_name: str, scene_detection_enabled: bool = False, shot_type_enabled: bool = False, color_palette_enabled: bool = False):
     from backend.database import SessionLocal
     
     db = SessionLocal()
@@ -231,7 +242,10 @@ def scan_task(db_url: str, scan_id: int, folder_path: str, yolo_enabled: bool, s
                 scan_job=scan_job,
                 yolo_enabled=yolo_enabled,
                 sample_interval=sample_interval,
-                model_name=model_name
+                model_name=model_name,
+                scene_detection_enabled=scene_detection_enabled,
+                shot_type_enabled=shot_type_enabled,
+                color_palette_enabled=color_palette_enabled
             )
             scanner.scan_folder(folder_path)
     finally:
@@ -336,6 +350,9 @@ def start_scan(
         request.yolo_enabled,
         request.sample_interval,
         request.model_name,
+        request.scene_detection_enabled,
+        request.shot_type_enabled,
+        request.color_palette_enabled,
     )
     
     return {
@@ -527,6 +544,184 @@ def remove_video_tag(
     return {"tags": video.tags}
 
 
+class BatchTagRequest(BaseModel):
+    video_ids: list[int]
+    tag: str
+
+
+class BatchDeleteRequest(BaseModel):
+    video_ids: list[int]
+
+
+@app.post("/api/videos/batch/add-tag")
+def batch_add_tag(
+    request: BatchTagRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    videos = db.query(Video).filter(Video.id.in_(request.video_ids)).all()
+    updated = 0
+    for video in videos:
+        current_tags = video.tags or []
+        if request.tag not in current_tags:
+            video.tags = current_tags + [request.tag]
+            updated += 1
+    db.commit()
+    return {"updated": updated, "tag": request.tag}
+
+
+@app.post("/api/videos/batch/remove-tag")
+def batch_remove_tag(
+    request: BatchTagRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    videos = db.query(Video).filter(Video.id.in_(request.video_ids)).all()
+    updated = 0
+    for video in videos:
+        current_tags = video.tags or []
+        if request.tag in current_tags:
+            video.tags = [t for t in current_tags if t != request.tag]
+            updated += 1
+    db.commit()
+    return {"updated": updated, "tag": request.tag}
+
+
+@app.post("/api/videos/batch/delete")
+def batch_delete_videos(
+    request: BatchDeleteRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    videos = db.query(Video).filter(Video.id.in_(request.video_ids)).all()
+    deleted = len(videos)
+    for video in videos:
+        db.delete(video)
+    db.commit()
+    return {"deleted": deleted}
+
+
+@app.post("/api/videos/batch/add-to-collection")
+def batch_add_to_collection(
+    collection_id: int,
+    request: BatchDeleteRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    collection = db.query(Collection).filter(Collection.id == collection_id).first()
+    if not collection:
+        raise HTTPException(status_code=404, detail="Collection not found")
+    
+    videos = db.query(Video).filter(Video.id.in_(request.video_ids)).all()
+    added = 0
+    for video in videos:
+        if video not in collection.videos:
+            collection.videos.append(video)
+            added += 1
+    collection.video_count = len(collection.videos)
+    db.commit()
+    return {"added": added, "collection_id": collection_id}
+
+
+@app.post("/api/videos/batch/add-to-project")
+def batch_add_to_project(
+    project_id: int,
+    request: BatchDeleteRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    videos = db.query(Video).filter(Video.id.in_(request.video_ids)).all()
+    added = 0
+    for video in videos:
+        if video not in project.videos:
+            project.videos.append(video)
+            added += 1
+    project.video_count = len(project.videos)
+    db.commit()
+    return {"added": added, "project_id": project_id}
+
+
+@app.get("/api/videos/{video_id}/scenes")
+def get_video_scenes(
+    video_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    return {"scenes": video.scenes or [], "scene_detection_enabled": video.scene_detection_enabled}
+
+
+@app.post("/api/videos/{video_id}/scenes")
+def detect_video_scenes(
+    video_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    if not os.path.exists(video.filepath):
+        raise HTTPException(status_code=404, detail="Video file not found")
+    
+    from backend.scanner import VideoScanner
+    scanner = VideoScanner(db=db, scan_job=None, yolo_enabled=False)
+    scenes = scanner.detect_scenes(video.filepath)
+    
+    video.scenes = scenes
+    video.scene_detection_enabled = True
+    db.commit()
+    db.refresh(video)
+    
+    return {"scenes": scenes, "scene_detection_enabled": True}
+
+
+class RatingRequest(BaseModel):
+    rating: int
+
+
+@app.post("/api/videos/{video_id}/rating")
+def set_video_rating(
+    video_id: int,
+    request: RatingRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    rating = max(0, min(5, request.rating))
+    video.rating = rating
+    db.commit()
+    db.refresh(video)
+    
+    return {"rating": video.rating}
+
+
+@app.delete("/api/videos/{video_id}/rating")
+def delete_video_rating(
+    video_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    video.rating = None
+    db.commit()
+    
+    return {"rating": None}
+
+
 @app.get("/api/tags")
 def get_all_tags(
     db: Session = Depends(get_db),
@@ -538,6 +733,54 @@ def get_all_tags(
         if video.tags:
             all_tags.update(video.tags)
     return {"tags": sorted(list(all_tags))}
+
+
+@app.get("/api/videos/duplicates")
+def find_duplicates(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    videos = db.query(Video).all()
+    
+    duplicates = []
+    seen = {}
+    
+    for video in videos:
+        key = f"{video.filename}_{video.duration}_{video.resolution}_{video.file_size}"
+        
+        if key in seen:
+            duplicates.append({
+                "original_id": seen[key],
+                "duplicate_id": video.id,
+                "filename": video.filename,
+                "duration": video.duration,
+                "resolution": video.resolution,
+                "file_size": video.file_size,
+            })
+        else:
+            seen[key] = video.id
+    
+    original_videos = db.query(Video).filter(Video.id.in_([d["original_id"] for d in duplicates])).all()
+    duplicate_videos = db.query(Video).filter(Video.id.in_([d["duplicate_id"] for d in duplicates])).all()
+    
+    original_map = {v.id: v for v in original_videos}
+    duplicate_map = {v.id: v for v in duplicate_videos}
+    
+    for d in duplicates:
+        d["original"] = {
+            "id": d["original_id"],
+            "filepath": original_map[d["original_id"]].filepath if d["original_id"] in original_map else None,
+            "filename": original_map[d["original_id"]].filename if d["original_id"] in original_map else None,
+        }
+        d["duplicate"] = {
+            "id": d["duplicate_id"],
+            "filepath": duplicate_map[d["duplicate_id"]].filepath if d["duplicate_id"] in duplicate_map else None,
+            "filename": duplicate_map[d["duplicate_id"]].filename if d["duplicate_id"] in duplicate_map else None,
+        }
+        del d["original_id"]
+        del d["duplicate_id"]
+    
+    return {"duplicates": duplicates, "count": len(duplicates)}
 
 
 @app.get("/api/stats")
@@ -604,6 +847,153 @@ def export_excel(
         content=excel_content,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=videos.xlsx"}
+    )
+
+
+def generate_edl(videos: list) -> str:
+    """Generate CMX 3600 EDL from video list."""
+    edl_lines = [
+        "TITLE: KDO Video Tagger Export",
+        "",
+    ]
+    
+    reel_names = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    
+    for i, video in enumerate(videos, 1):
+        filename = video.filename
+        duration_frames = int((video.duration or 1) * 30)
+        
+        reel_name = "KDO"
+        if len(filename) > 8:
+            ext = filename.split('.')[-1] if '.' in filename else ""
+            name_part = filename[:8 - len(ext) - 1] if ext else filename[:8]
+            reel_name = f"{name_part[:8].upper()}{ext[:3].upper()}"
+        
+        source_in = "00:00:00:00"
+        source_out = f"{int((video.duration or 0) / 3600):02d}:{int((video.duration or 0) / 60 % 60):02d}:{int(video.duration or 0) % 60:02d}:00"
+        
+        record_in = f"{int((i-1) * (video.duration or 0) / 3600):02d}:{int((i-1) * (video.duration or 0) / 60 % 60):02d}:{int((i-1) * (video.duration or 0) % 60):02d}:00"
+        record_out = f"{int(i * (video.duration or 0) / 3600):02d}:{int(i * (video.duration or 0) / 60 % 60):02d}:{int(i * (video.duration or 0) % 60):02d}:00"
+        
+        edl_lines.append(f"{i:03d}  {reel_name} V  C        {source_in} {source_out} {record_in} {record_out}")
+        edl_lines.append(f"* FROM CLIP NAME: {filename}")
+        edl_lines.append(f"* FILE: {video.filepath}")
+        if video.resolution:
+            edl_lines.append(f"* RESOLUTION: {video.resolution}")
+        if video.duration:
+            edl_lines.append(f"* DURATION: {video.duration:.2f}s")
+        edl_lines.append("")
+    
+    return "\n".join(edl_lines)
+
+
+@app.post("/api/export/edl")
+def export_edl(
+    request: dict = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if request and request.get("video_ids"):
+        videos = db.query(Video).filter(Video.id.in_(request["video_ids"])).all()
+    else:
+        videos = db.query(Video).all()
+    
+    edl_content = generate_edl(videos)
+    
+    return Response(
+        content=edl_content,
+        media_type="text/plain",
+        headers={"Content-Disposition": "attachment; filename=videos.edl"}
+    )
+
+
+def generate_pdf(videos: list) -> bytes:
+    """Generate a PDF shot list from video list."""
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+    from reportlab.lib.enums import TA_CENTER, TA_LEFT
+    
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    elements = []
+    
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('Title', parent=styles['Heading1'], fontSize=18, alignment=TA_CENTER, spaceAfter=20)
+    subtitle_style = ParagraphStyle('Subtitle', parent=styles['Normal'], fontSize=10, alignment=TA_CENTER, textColor=colors.grey, spaceAfter=20)
+    
+    elements.append(Paragraph("Shot List", title_style))
+    elements.append(Paragraph(f"Generated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} | {len(videos)} clips", subtitle_style))
+    elements.append(Spacer(1, 20))
+    
+    header_style = ParagraphStyle('Header', parent=styles['Normal'], fontSize=8, alignment=TA_CENTER)
+    
+    table_data = [['#', 'Filename', 'Duration', 'Resolution', 'Camera', 'Tags']]
+    for i, video in enumerate(videos, 1):
+        tags_str = ', '.join(video.tags[:5]) if video.tags else '-'
+        duration_str = f"{int((video.duration or 0) / 60)}:{int(video.duration or 0) % 60:02d}" if video.duration else '-'
+        row = [
+            str(i),
+            Paragraph(video.filename[:30], ParagraphStyle('Cell', fontSize=7, alignment=TA_LEFT)),
+            duration_str,
+            video.resolution or '-',
+            video.camera_type or '-',
+            Paragraph(tags_str[:40], ParagraphStyle('Cell', fontSize=6, alignment=TA_LEFT)),
+        ]
+        table_data.append(row)
+    
+    col_widths = [0.4*inch, 2*inch, 0.7*inch, 0.9*inch, 0.8*inch, 2.2*inch]
+    table = Table(table_data, colWidths=col_widths)
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2563eb')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 7),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f3f4f6')]),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    
+    elements.append(table)
+    elements.append(Spacer(1, 30))
+    
+    footer_style = ParagraphStyle('Footer', parent=styles['Normal'], fontSize=8, textColor=colors.grey, alignment=TA_CENTER)
+    total_duration = sum(v.duration or 0 for v in videos)
+    total_str = f"Total clips: {len(videos)} | Total duration: {int(total_duration / 3600)}h {int(total_duration % 3600 / 60)}m {int(total_duration % 60)}s"
+    elements.append(Paragraph(total_str, footer_style))
+    elements.append(Paragraph("Generated by KDO Video Tagger", footer_style))
+    
+    doc.build(elements)
+    pdf_content = buffer.getvalue()
+    buffer.close()
+    
+    return pdf_content
+
+
+@app.post("/api/export/pdf")
+def export_pdf(
+    request: dict = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if request and request.get("video_ids"):
+        videos = db.query(Video).filter(Video.id.in_(request["video_ids"])).all()
+    else:
+        videos = db.query(Video).all()
+    
+    pdf_content = generate_pdf(videos)
+    
+    return Response(
+        content=pdf_content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=shot-list.pdf"}
     )
 
 
