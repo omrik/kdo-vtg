@@ -122,6 +122,10 @@ function App() {
 
   const [collections, setCollections] = useState<Collection[]>([])
   const [projects, setProjects] = useState<Project[]>([])
+  const [allTags, setAllTags] = useState<string[]>([])
+  const [selectedTag, setSelectedTag] = useState<string | null>(null)
+  const [editingVideo, setEditingVideo] = useState<VideoItem | null>(null)
+  const [newTagInput, setNewTagInput] = useState('')
 
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [showNewCollectionModal, setShowNewCollectionModal] = useState(false)
@@ -160,6 +164,7 @@ function App() {
       fetchStats()
       fetchCollections()
       fetchProjects()
+      fetchAllTags()
     }
   }, [token])
 
@@ -268,9 +273,12 @@ function App() {
   const fetchVideos = async (folderPath?: string) => {
     setLoading(true)
     try {
-      const url = folderPath
+      let url = folderPath
         ? `${API_BASE}/api/videos?folder_path=${encodeURIComponent(folderPath)}`
         : `${API_BASE}/api/videos`
+      if (selectedTag) {
+        url += `${folderPath ? '&' : '?'}tag=${encodeURIComponent(selectedTag)}`
+      }
       const res = await fetch(url, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
       })
@@ -280,6 +288,54 @@ function App() {
       setError('Failed to fetch videos')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchAllTags = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/tags`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      const data = await res.json()
+      setAllTags(data.tags || [])
+    } catch (err) {
+      console.error('Failed to fetch tags')
+    }
+  }
+
+  const addTagToVideo = async (videoId: number, tag: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/videos/${videoId}/tags`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ tag }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setVideos(videos.map(v => v.id === videoId ? { ...v, tags: data.tags } : v))
+        fetchAllTags()
+      }
+    } catch (err) {
+      setError('Failed to add tag')
+    }
+  }
+
+  const removeTagFromVideo = async (videoId: number, tag: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/videos/${videoId}/tags/${encodeURIComponent(tag)}`, {
+        method: 'DELETE',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setVideos(videos.map(v => v.id === videoId ? { ...v, tags: data.tags } : v))
+        fetchAllTags()
+      }
+    } catch (err) {
+      setError('Failed to remove tag')
     }
   }
 
@@ -724,6 +780,31 @@ function App() {
                 </button>
               </div>
 
+              <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem', alignItems: 'center' }}>
+                <div className="form-group" style={{ margin: 0, flex: 1 }}>
+                  <label style={{ fontSize: '0.75rem' }}>Filter by Tag</label>
+                  <select 
+                    value={selectedTag || ''} 
+                    onChange={(e) => {
+                      setSelectedTag(e.target.value || null)
+                      fetchVideos(selectedFolder || undefined)
+                    }}
+                    style={{ width: '100%' }}
+                  >
+                    <option value="">All Tags</option>
+                    {allTags.map(tag => (
+                      <option key={tag} value={tag}>{tag}</option>
+                    ))}
+                  </select>
+                </div>
+                {selectedTag && (
+                  <button className="btn btn-secondary" onClick={() => { setSelectedTag(null); fetchVideos(selectedFolder || undefined) }}>
+                    <X size={14} />
+                    Clear Filter
+                  </button>
+                )}
+              </div>
+
               {loading ? (
                 <div className="loading">Loading...</div>
               ) : videos.length === 0 ? (
@@ -754,9 +835,18 @@ function App() {
                           <td>{video.camera_type || '-'}</td>
                           <td>
                             <div className="tags-container">
-                              {video.tags?.slice(0, 3).map((tag, i) => (
-                                <span key={i} className="tag">{tag}</span>
+                              {video.tags?.map((tag, i) => (
+                                <span key={i} className="tag" onClick={() => removeTagFromVideo(video.id, tag)} style={{ cursor: 'pointer' }}>
+                                  {tag} <X size={10} />
+                                </span>
                               ))}
+                              <button 
+                                className="btn btn-secondary" 
+                                style={{ padding: '2px 6px', fontSize: '0.7rem' }}
+                                onClick={() => setEditingVideo(video)}
+                              >
+                                <Plus size={12} />
+                              </button>
                             </div>
                           </td>
                         </tr>
@@ -988,6 +1078,84 @@ function App() {
               </button>
               <button className="btn btn-secondary" onClick={() => setShowNewProjectModal(false)}>
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingVideo && (
+        <div className="modal-overlay" onClick={() => setEditingVideo(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Edit Tags: {editingVideo.filename}</h2>
+            <div className="form-group">
+              <label>Current Tags</label>
+              <div className="tags-container" style={{ padding: '0.5rem', background: 'var(--bg-tertiary)', borderRadius: '6px', minHeight: '40px' }}>
+                {editingVideo.tags?.length ? editingVideo.tags.map((tag, i) => (
+                  <span key={i} className="tag" onClick={() => {
+                    removeTagFromVideo(editingVideo.id, tag)
+                    setEditingVideo({ ...editingVideo, tags: editingVideo.tags?.filter(t => t !== tag) || null })
+                  }} style={{ cursor: 'pointer' }}>
+                    {tag} <X size={10} />
+                  </span>
+                )) : <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No tags</span>}
+              </div>
+            </div>
+            <div className="form-group">
+              <label>Add Tag</label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input
+                  type="text"
+                  value={newTagInput}
+                  onChange={(e) => setNewTagInput(e.target.value)}
+                  placeholder="Enter tag name"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newTagInput.trim()) {
+                      addTagToVideo(editingVideo.id, newTagInput.trim())
+                      setEditingVideo({ ...editingVideo, tags: [...(editingVideo.tags || []), newTagInput.trim()] })
+                      setNewTagInput('')
+                    }
+                  }}
+                  style={{ flex: 1 }}
+                />
+                <button 
+                  className="btn btn-primary" 
+                  onClick={() => {
+                    if (newTagInput.trim()) {
+                      addTagToVideo(editingVideo.id, newTagInput.trim())
+                      setEditingVideo({ ...editingVideo, tags: [...(editingVideo.tags || []), newTagInput.trim()] })
+                      setNewTagInput('')
+                    }
+                  }}
+                >
+                  <Plus size={14} />
+                  Add
+                </button>
+              </div>
+              {allTags.length > 0 && (
+                <>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Or select existing:</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginTop: '0.25rem' }}>
+                    {allTags.filter(t => !editingVideo.tags?.includes(t)).map(tag => (
+                      <button 
+                        key={tag} 
+                        className="tag" 
+                        style={{ cursor: 'pointer', background: 'none', border: 'none' }}
+                        onClick={() => {
+                          addTagToVideo(editingVideo.id, tag)
+                          setEditingVideo({ ...editingVideo, tags: [...(editingVideo.tags || []), tag] })
+                        }}
+                      >
+                        + {tag}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+              <button className="btn btn-secondary" onClick={() => { setEditingVideo(null); setNewTagInput('') }}>
+                Done
               </button>
             </div>
           </div>
