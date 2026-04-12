@@ -1525,17 +1525,17 @@ function App() {
                   <div 
                     key={col.id} 
                     className="folder-card" 
-                    style={{ borderLeft: `4px solid ${col.color}`, cursor: 'pointer' }}
+                    style={{ borderLeft: `4px solid ${col.color}` }}
+                    onClick={() => { setViewingCollection(col); fetchCollectionVideos(col.id) }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div className="folder-name" onClick={() => { setViewingCollection(col); fetchCollectionVideos(col.id) }}>
+                      <div className="folder-name">
                         <Bookmark size={20} style={{ color: col.color }} />
                         {col.name}
                       </div>
                       <button 
                         className="btn-icon" 
                         onClick={(e) => { e.stopPropagation(); deleteCollection(col.id) }}
-                        style={{ color: 'var(--text-secondary)', padding: '0.25rem' }}
                         title="Delete collection"
                       >
                         <Trash2 size={16} />
@@ -1666,16 +1666,16 @@ function App() {
                   <div 
                     key={proj.id} 
                     className="folder-card"
+                    onClick={() => { setViewingProject(proj); fetchProjectVideos(proj.id) }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div className="folder-name" onClick={() => { setViewingProject(proj); fetchProjectVideos(proj.id) }}>
+                      <div className="folder-name">
                         <Briefcase size={20} />
                         {proj.name}
                       </div>
                       <button 
                         className="btn-icon" 
                         onClick={(e) => { e.stopPropagation(); deleteProject(proj.id) }}
-                        style={{ color: 'var(--text-secondary)', padding: '0.25rem' }}
                         title="Delete project"
                       >
                         <Trash2 size={16} />
