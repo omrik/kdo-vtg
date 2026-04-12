@@ -162,6 +162,7 @@ function App() {
   const [viewingProject, setViewingProject] = useState<Project | null>(null)
   const [collectionVideos, setCollectionVideos] = useState<VideoItem[]>([])
   const [projectVideos, setProjectVideos] = useState<VideoItem[]>([])
+  const [pendingAddVideo, setPendingAddVideo] = useState<number | null>(null)
   const [isFirstRun, setIsFirstRun] = useState(false)
   const [needsSetup, setNeedsSetup] = useState(false)
   const [appLoading, setAppLoading] = useState(true)
@@ -624,9 +625,16 @@ function App() {
         body: JSON.stringify({ name: newCollectionName }),
       })
       if (res.ok) {
+        const data = await res.json()
         fetchCollections()
         setNewCollectionName('')
         setShowNewCollectionModal(false)
+        
+        // If pending video, add to newly created collection
+        if (pendingAddVideo !== null) {
+          await addToCollection(pendingAddVideo, data.id)
+          setPendingAddVideo(null)
+        }
       }
     } catch (err) {
       setError('Failed to create collection')
@@ -644,9 +652,16 @@ function App() {
         body: JSON.stringify({ name: newProjectName }),
       })
       if (res.ok) {
+        const data = await res.json()
         fetchProjects()
         setNewProjectName('')
         setShowNewProjectModal(false)
+        
+        // If pending video, add to newly created project
+        if (pendingAddVideo !== null) {
+          await addToProject(pendingAddVideo, data.id)
+          setPendingAddVideo(null)
+        }
       }
     } catch (err) {
       setError('Failed to create project')
@@ -1152,11 +1167,27 @@ function App() {
                 {selectedVideos.size > 0 && (
                   <>
                     <span>{selectedVideos.size} selected</span>
-                    <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => setShowAddToModal('collection')}>
+                    <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => {
+                        const videoId = selectedVideos.size === 1 ? Array.from(selectedVideos)[0] : null
+                        if (collections.length === 0 && videoId) {
+                          setPendingAddVideo(videoId)
+                          setShowNewCollectionModal(true)
+                        } else {
+                          setShowAddToModal('collection')
+                        }
+                      }}>
                       <FolderPlus size={14} />
                       Collection
                     </button>
-                    <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => setShowAddToModal('project')}>
+                    <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => {
+                        const videoId = selectedVideos.size === 1 ? Array.from(selectedVideos)[0] : null
+                        if (projects.length === 0 && videoId) {
+                          setPendingAddVideo(videoId)
+                          setShowNewProjectModal(true)
+                        } else {
+                          setShowAddToModal('project')
+                        }
+                      }}>
                       <BriefcaseIcon size={14} />
                       Project
                     </button>
@@ -1233,14 +1264,18 @@ function App() {
                           <button 
                             className="btn btn-secondary" 
                             style={{ fontSize: '0.7rem', padding: '2px 6px' }}
-                            onClick={(e) => { e.stopPropagation(); setAddToVideoId(video.id); setShowAddToModal('collection') }}
+                            onClick={(e) => { e.stopPropagation(); 
+                      if (collections.length === 0) { setPendingAddVideo(video.id); setShowNewCollectionModal(true) }
+                      else { setAddToVideoId(video.id); setShowAddToModal('collection') }}}
                           >
                             <FolderPlus size={12} />
                           </button>
                           <button 
                             className="btn btn-secondary" 
                             style={{ fontSize: '0.7rem', padding: '2px 6px' }}
-                            onClick={(e) => { e.stopPropagation(); setAddToVideoId(video.id); setShowAddToModal('project') }}
+                            onClick={(e) => { e.stopPropagation();
+                      if (projects.length === 0) { setPendingAddVideo(video.id); setShowNewProjectModal(true) }
+                      else { setAddToVideoId(video.id); setShowAddToModal('project') }}}
                           >
                             <BriefcaseIcon size={12} />
                           </button>
@@ -1714,7 +1749,7 @@ function App() {
       )}
 
       {showNewCollectionModal && (
-        <div className="modal-overlay" onClick={() => setShowNewCollectionModal(false)}>
+        <div className="modal-overlay" onClick={() => { setShowNewCollectionModal(false); setPendingAddVideo(null); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>New Collection</h2>
             <div className="form-group">
@@ -1730,7 +1765,7 @@ function App() {
               <button className="btn btn-primary" onClick={createCollection}>
                 Create
               </button>
-              <button className="btn btn-secondary" onClick={() => setShowNewCollectionModal(false)}>
+              <button className="btn btn-secondary" onClick={() => { setShowNewCollectionModal(false); setPendingAddVideo(null); }}>
                 Cancel
               </button>
             </div>
@@ -1739,7 +1774,7 @@ function App() {
       )}
 
       {showNewProjectModal && (
-        <div className="modal-overlay" onClick={() => setShowNewProjectModal(false)}>
+        <div className="modal-overlay" onClick={() => { setShowNewProjectModal(false); setPendingAddVideo(null); }}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>New Project</h2>
             <div className="form-group">
@@ -1755,7 +1790,7 @@ function App() {
               <button className="btn btn-primary" onClick={createProject}>
                 Create
               </button>
-              <button className="btn btn-secondary" onClick={() => setShowNewProjectModal(false)}>
+              <button className="btn btn-secondary" onClick={() => { setShowNewProjectModal(false); setPendingAddVideo(null); }}>
                 Cancel
               </button>
             </div>
