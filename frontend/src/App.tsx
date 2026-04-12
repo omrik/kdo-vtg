@@ -150,6 +150,10 @@ function App() {
   const [showNewProjectModal, setShowNewProjectModal] = useState(false)
   const [newCollectionName, setNewCollectionName] = useState('')
   const [newProjectName, setNewProjectName] = useState('')
+  const [viewingCollection, setViewingCollection] = useState<Collection | null>(null)
+  const [viewingProject, setViewingProject] = useState<Project | null>(null)
+  const [collectionVideos, setCollectionVideos] = useState<VideoItem[]>([])
+  const [projectVideos, setProjectVideos] = useState<VideoItem[]>([])
   const [isFirstRun, setIsFirstRun] = useState(false)
   const [needsSetup, setNeedsSetup] = useState(false)
   const [appLoading, setAppLoading] = useState(true)
@@ -457,6 +461,30 @@ function App() {
       }
     } catch (err) {
       setError('Failed to add video to project')
+    }
+  }
+
+  const fetchCollectionVideos = async (collectionId: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/collections/${collectionId}/videos`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      const data = await res.json()
+      setCollectionVideos(data.videos || [])
+    } catch (err) {
+      setError('Failed to fetch collection videos')
+    }
+  }
+
+  const fetchProjectVideos = async (projectId: number) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/projects/${projectId}/videos`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      const data = await res.json()
+      setProjectVideos(data.videos || [])
+    } catch (err) {
+      setError('Failed to fetch project videos')
     }
   }
 
@@ -1166,15 +1194,60 @@ function App() {
             <div className="card-header">
               <h2 className="card-title">
                 <Bookmark size={20} />
-                Collections
+                {viewingCollection ? viewingCollection.name : 'Collections'}
               </h2>
-              <button className="btn btn-primary" onClick={() => setShowNewCollectionModal(true)}>
-                <Plus size={16} />
-                New Collection
-              </button>
+              {viewingCollection ? (
+                <button className="btn btn-secondary" onClick={() => setViewingCollection(null)}>
+                  <X size={16} />
+                  Back
+                </button>
+              ) : (
+                <button className="btn btn-primary" onClick={() => setShowNewCollectionModal(true)}>
+                  <Plus size={16} />
+                  New Collection
+                </button>
+              )}
             </div>
 
-            {collections.length === 0 ? (
+            {viewingCollection ? (
+              collectionVideos.length === 0 ? (
+                <div className="empty-state">
+                  <Video size={48} />
+                  <p>No videos in this collection.</p>
+                </div>
+              ) : (
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Filename</th>
+                        <th>Resolution</th>
+                        <th>Duration</th>
+                        <th>Camera</th>
+                        <th>Tags</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {collectionVideos.map((video) => (
+                        <tr key={video.id}>
+                          <td title={video.filepath}>{video.filename}</td>
+                          <td>{video.resolution || '-'}</td>
+                          <td>{formatDuration(video.duration)}</td>
+                          <td>{video.camera_type || '-'}</td>
+                          <td>
+                            <div className="tags-container">
+                              {video.tags?.map((tag, i) => (
+                                <span key={i} className="tag">{tag}</span>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            ) : collections.length === 0 ? (
               <div className="empty-state">
                 <Bookmark size={48} />
                 <p>No collections yet. Create one to organize your videos.</p>
@@ -1182,7 +1255,12 @@ function App() {
             ) : (
               <div className="folder-grid">
                 {collections.map((col) => (
-                  <div key={col.id} className="folder-card" style={{ borderLeft: `4px solid ${col.color}` }}>
+                  <div 
+                    key={col.id} 
+                    className="folder-card" 
+                    style={{ borderLeft: `4px solid ${col.color}`, cursor: 'pointer' }}
+                    onClick={() => { setViewingCollection(col); fetchCollectionVideos(col.id) }}
+                  >
                     <div className="folder-name">
                       <Bookmark size={20} style={{ color: col.color }} />
                       {col.name}
@@ -1207,15 +1285,60 @@ function App() {
             <div className="card-header">
               <h2 className="card-title">
                 <Briefcase size={20} />
-                Projects
+                {viewingProject ? viewingProject.name : 'Projects'}
               </h2>
-              <button className="btn btn-primary" onClick={() => setShowNewProjectModal(true)}>
-                <Plus size={16} />
-                New Project
-              </button>
+              {viewingProject ? (
+                <button className="btn btn-secondary" onClick={() => setViewingProject(null)}>
+                  <X size={16} />
+                  Back
+                </button>
+              ) : (
+                <button className="btn btn-primary" onClick={() => setShowNewProjectModal(true)}>
+                  <Plus size={16} />
+                  New Project
+                </button>
+              )}
             </div>
 
-            {projects.length === 0 ? (
+            {viewingProject ? (
+              projectVideos.length === 0 ? (
+                <div className="empty-state">
+                  <Video size={48} />
+                  <p>No videos in this project.</p>
+                </div>
+              ) : (
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Filename</th>
+                        <th>Resolution</th>
+                        <th>Duration</th>
+                        <th>Camera</th>
+                        <th>Tags</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {projectVideos.map((video) => (
+                        <tr key={video.id}>
+                          <td title={video.filepath}>{video.filename}</td>
+                          <td>{video.resolution || '-'}</td>
+                          <td>{formatDuration(video.duration)}</td>
+                          <td>{video.camera_type || '-'}</td>
+                          <td>
+                            <div className="tags-container">
+                              {video.tags?.map((tag, i) => (
+                                <span key={i} className="tag">{tag}</span>
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            ) : projects.length === 0 ? (
               <div className="empty-state">
                 <Briefcase size={48} />
                 <p>No projects yet. Create one to plan your next movie.</p>
@@ -1223,7 +1346,12 @@ function App() {
             ) : (
               <div className="folder-grid">
                 {projects.map((proj) => (
-                  <div key={proj.id} className="folder-card">
+                  <div 
+                    key={proj.id} 
+                    className="folder-card"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => { setViewingProject(proj); fetchProjectVideos(proj.id) }}
+                  >
                     <div className="folder-name">
                       <Briefcase size={20} />
                       {proj.name}

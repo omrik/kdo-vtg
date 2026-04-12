@@ -21,7 +21,8 @@ RUN pip install --no-cache-dir --break-system-packages \
     python-jose[cryptography] \
     passlib==1.7.4 \
     bcrypt==4.0.1 \
-    openpyxl
+    openpyxl \
+    ultralytics
 
 COPY backend/ ./backend/
 

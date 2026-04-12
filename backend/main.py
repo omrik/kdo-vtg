@@ -458,7 +458,6 @@ def get_videos(
 def get_thumbnail(
     video_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
 ):
     video = db.query(Video).filter(Video.id == video_id).first()
     if not video:
@@ -719,6 +718,90 @@ def remove_video_from_collection(
         db.commit()
     
     return {"status": "ok"}
+
+
+@app.get("/api/collections/{collection_id}/videos")
+def get_collection_videos(
+    collection_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    collection = db.query(Collection).filter(Collection.id == collection_id).first()
+    if not collection:
+        raise HTTPException(status_code=404, detail="Collection not found")
+    
+    videos = collection.videos
+    return {
+        "videos": [
+            {
+                "id": v.id,
+                "filename": v.filename,
+                "filepath": v.filepath,
+                "resolution": v.resolution,
+                "width": v.width,
+                "height": v.height,
+                "duration": v.duration,
+                "fps": v.fps,
+                "codec": v.codec,
+                "bitrate": v.bitrate,
+                "camera_type": v.camera_type,
+                "date_created": v.date_created.isoformat() if v.date_created else None,
+                "file_size": v.file_size,
+                "tags": v.tags or [],
+                "thumbnail": v.thumbnail,
+                "yolo_enabled": v.yolo_enabled,
+                "created_at": v.created_at.isoformat() if v.created_at else None,
+            }
+            for v in videos
+        ],
+        "collection": {
+            "id": collection.id,
+            "name": collection.name,
+            "color": collection.color,
+        }
+    }
+
+
+@app.get("/api/projects/{project_id}/videos")
+def get_project_videos(
+    project_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    
+    videos = project.videos
+    return {
+        "videos": [
+            {
+                "id": v.id,
+                "filename": v.filename,
+                "filepath": v.filepath,
+                "resolution": v.resolution,
+                "width": v.width,
+                "height": v.height,
+                "duration": v.duration,
+                "fps": v.fps,
+                "codec": v.codec,
+                "bitrate": v.bitrate,
+                "camera_type": v.camera_type,
+                "date_created": v.date_created.isoformat() if v.date_created else None,
+                "file_size": v.file_size,
+                "tags": v.tags or [],
+                "thumbnail": v.thumbnail,
+                "yolo_enabled": v.yolo_enabled,
+                "created_at": v.created_at.isoformat() if v.created_at else None,
+            }
+            for v in videos
+        ],
+        "project": {
+            "id": project.id,
+            "name": project.name,
+            "status": project.status,
+        }
+    }
 
 
 @app.post("/api/projects/{project_id}/videos")
