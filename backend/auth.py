@@ -8,7 +8,7 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
-from backend.database import SessionLocal, User
+from backend.database import SessionLocal, User, get_db
 
 
 SECRET_KEY = os.environ.get("JWT_SECRET", "change-this-in-production")
@@ -43,7 +43,7 @@ def decode_token(token: str) -> Optional[dict]:
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(lambda: SessionLocal()),
+    db: Session = Depends(get_db),
 ) -> User:
     if not credentials:
         raise HTTPException(
