@@ -59,24 +59,24 @@
 - [x] User authentication
 
 ### Phase 2: Video Editor Essentials
-- [ ] **Thumbnails** - Extract frame at 10% of video
-- [ ] **Grid view** - Visual browsing with thumbnails
-- [ ] **Custom tags** - User-defined tags per video
-- [ ] **Collections** - Group videos into projects
-- [ ] **Advanced filters** - Resolution, duration, date range
+- [x] **Thumbnails** - Extract frame at 10% of video
+- [x] **Grid view** - Visual browsing with thumbnails
+- [x] **Custom tags** - User-defined tags per video
+- [x] **Collections** - Group videos into projects
+- [x] **Advanced filters** - Resolution, duration, date range
 
 ### Phase 3: Analysis Features
-- [ ] **Scene detection** - Identify shot boundaries
-- [ ] **Shot type analysis** - WS/MS/CU/ECU detection via YOLO
-- [ ] **Color palette** - Extract dominant colors
-- [ ] **GPS timeline** - Parse and visualize locations
+- [x] **Scene detection** - Identify shot boundaries
+- [x] **Shot type analysis** - WS/MS/CU/ECU detection via YOLO
+- [x] **Color palette** - Extract dominant colors
+- [x] **GPS timeline** - Parse and visualize locations
 
 ### Phase 4: Production Features
-- [ ] **EDL export** - For Premiere/DaVinci Resolve
-- [ ] **Shot list generator** - PDF export
-- [ ] **Batch operations** - Bulk tag/edit
-- [ ] **Rating system** - Stars per video
-- [ ] **Duplicate detection** - Hash-based
+- [x] **EDL export** - For Premiere/DaVinci Resolve
+- [x] **Shot list generator** - PDF export
+- [x] **Batch operations** - Bulk tag/edit
+- [x] **Rating system** - Stars per video
+- [x] **Duplicate detection** - Hash-based
 
 ---
 
