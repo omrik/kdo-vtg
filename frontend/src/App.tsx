@@ -1241,44 +1241,62 @@ function App() {
                   </div>
                 </div>
 
-                <div className="form-group checkbox-group">
-                  <input
-                    type="checkbox"
-                    id="yolo_enabled"
-                    checked={scanSettings.yolo_enabled}
-                    onChange={(e) => setScanSettings({ ...scanSettings, yolo_enabled: e.target.checked })}
-                  />
-                  <label htmlFor="yolo_enabled">Enable Object Detection (YOLO)</label>
-                </div>
-
-                <div className="form-group checkbox-group">
-                  <input
-                    type="checkbox"
-                    id="scene_detection_enabled"
-                    checked={scanSettings.scene_detection_enabled}
-                    onChange={(e) => setScanSettings({ ...scanSettings, scene_detection_enabled: e.target.checked })}
-                  />
-                  <label htmlFor="scene_detection_enabled">Enable Scene Detection</label>
-                </div>
-
-                <div className="form-group checkbox-group">
-                  <input
-                    type="checkbox"
-                    id="shot_type_enabled"
-                    checked={scanSettings.shot_type_enabled}
-                    onChange={(e) => setScanSettings({ ...scanSettings, shot_type_enabled: e.target.checked })}
-                  />
-                  <label htmlFor="shot_type_enabled">Enable Shot Type Analysis (requires YOLO)</label>
-                </div>
-
-                <div className="form-group checkbox-group">
-                  <input
-                    type="checkbox"
-                    id="color_palette_enabled"
-                    checked={scanSettings.color_palette_enabled}
-                    onChange={(e) => setScanSettings({ ...scanSettings, color_palette_enabled: e.target.checked })}
-                  />
-                  <label htmlFor="color_palette_enabled">Enable Color Palette Extraction</label>
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ marginBottom: '0.5rem' }}>Scan Options</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="scan-option"
+                        checked={scanSettings.yolo_enabled && !scanSettings.scene_detection_enabled && !scanSettings.shot_type_enabled && !scanSettings.color_palette_enabled}
+                        onChange={() => setScanSettings({ ...scanSettings, yolo_enabled: true, scene_detection_enabled: false, shot_type_enabled: false, color_palette_enabled: false })}
+                        style={{ width: '18px', height: '18px' }}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 500 }}>Basic Scan</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Extract metadata only</div>
+                      </div>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="scan-option"
+                        checked={scanSettings.scene_detection_enabled}
+                        onChange={() => setScanSettings({ ...scanSettings, yolo_enabled: true, scene_detection_enabled: true, shot_type_enabled: false, color_palette_enabled: false })}
+                        style={{ width: '18px', height: '18px' }}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 500 }}>Scene Detection</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Detect scene changes and shot boundaries</div>
+                      </div>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="scan-option"
+                        checked={scanSettings.shot_type_enabled}
+                        onChange={() => setScanSettings({ ...scanSettings, yolo_enabled: true, scene_detection_enabled: false, shot_type_enabled: true, color_palette_enabled: false })}
+                        style={{ width: '18px', height: '18px' }}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 500 }}>Shot Type Analysis</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Classify shots as wide, medium, close-up</div>
+                      </div>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="scan-option"
+                        checked={scanSettings.color_palette_enabled}
+                        onChange={() => setScanSettings({ ...scanSettings, yolo_enabled: true, scene_detection_enabled: false, shot_type_enabled: false, color_palette_enabled: true })}
+                        style={{ width: '18px', height: '18px' }}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 500 }}>Color Palette</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Extract dominant colors from frames</div>
+                      </div>
+                    </label>
+                  </div>
                 </div>
 
                 <div className="form-group">
@@ -1293,26 +1311,28 @@ function App() {
                   />
                 </div>
 
-                <div className="form-group">
-                  <label>After Scan</label>
-                  <div style={{ display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ marginBottom: '0.5rem' }}>After Scan</label>
+                  <div style={{ display: 'flex', gap: '1.5rem', padding: '0.75rem', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
                       <input
                         type="radio"
                         name="afterScan"
                         value="none"
                         checked={scanSettings.afterScan === 'none'}
                         onChange={() => setScanSettings({ ...scanSettings, afterScan: 'none' })}
+                        style={{ width: '18px', height: '18px' }}
                       />
                       Do nothing
                     </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
                       <input
                         type="radio"
                         name="afterScan"
                         value="createByTag"
                         checked={scanSettings.afterScan === 'createByTag'}
                         onChange={() => setScanSettings({ ...scanSettings, afterScan: 'createByTag' })}
+                        style={{ width: '18px', height: '18px' }}
                       />
                       Create collections by tag
                     </label>
