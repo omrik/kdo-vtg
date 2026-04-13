@@ -2089,7 +2089,7 @@ function App() {
                     <a href="https://github.com/omrik/kdo-vtg" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '4px 12px' }}>
                       GitHub
                     </a>
-                    <a href="https://github.com/omrik/kdo-vtg/blob/main/docs/DEVELOPMENT.md" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '4px 12px' }}>
+                    <a href="https://github.com/omrik/kdo-vtg/blob/main/docs/USAGE.md" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '4px 12px' }}>
                       Documentation
                     </a>
                   </div>
