@@ -155,6 +155,12 @@ def migrate_db():
             ('tags', 'TEXT'),
             ('scan_id', 'INTEGER'),
             ('updated_at', 'TIMESTAMP'),
+            ('scenes', 'TEXT'),
+            ('scene_detection_enabled', 'BOOLEAN DEFAULT 0'),
+            ('shot_types', 'TEXT'),
+            ('color_palette', 'TEXT'),
+            ('gps_data', 'TEXT'),
+            ('rating', 'INTEGER'),
         ]
         
         for col_name, col_type in migrations:
