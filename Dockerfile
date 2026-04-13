@@ -26,6 +26,7 @@ RUN pip install --no-cache-dir --break-system-packages \
     reportlab
 
 COPY backend/ ./backend/
+COPY VERSION ./
 
 COPY frontend/dist/ ./static/
 

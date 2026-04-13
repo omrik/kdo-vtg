@@ -257,6 +257,20 @@ function App() {
     }
   }, [activeTab, token])
 
+  // Fetch version on load
+  useEffect(() => {
+    fetch(`${API_BASE}/api/version`)
+      .then(res => res.json())
+      .then(data => {
+        const el = document.getElementById('version-display')
+        if (el) el.textContent = `Version: ${data.version}`
+      })
+      .catch(() => {
+        const el = document.getElementById('version-display')
+        if (el) el.textContent = 'Version: unknown'
+      })
+  }, [])
+
   const checkSetupStatus = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/auth/setup-status`)
@@ -2051,6 +2065,20 @@ function App() {
                     <Trash2 size={14} />
                     Reset
                   </button>
+                </div>
+              </div>
+
+              <div className="form-group" style={{ gridColumn: '1 / -1', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+                <label>About</label>
+                <div style={{ padding: '0.75rem', background: 'var(--bg-tertiary)', borderRadius: '6px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>
+                    <Video size={32} />
+                  </div>
+                  <div style={{ fontWeight: 600, fontSize: '1.1rem' }}>KDO Video Tagger</div>
+                  <div id="version-display" style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Version: Loading...</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    A self-hosted video metadata tagger for organizing video projects.
+                  </div>
                 </div>
               </div>
             </div>

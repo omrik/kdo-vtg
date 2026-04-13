@@ -71,9 +71,21 @@ if static_path.exists():
     app.mount("/assets", StaticFiles(directory=str(static_path / "assets")), name="assets")
 
 
+def get_version():
+    version_file = Path(__file__).parent.parent / "VERSION"
+    if version_file.exists():
+        return version_file.read_text().strip()
+    return "unknown"
+
+
 @app.get("/api/health")
 def health_check():
-    return {"status": "healthy", "service": "kdo-vtg"}
+    return {"status": "healthy", "service": "kdo-vtg", "version": get_version()}
+
+
+@app.get("/api/version")
+def get_app_version():
+    return {"version": get_version()}
 
 
 @app.get("/")
