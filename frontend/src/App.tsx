@@ -542,9 +542,11 @@ function App() {
       if (res.ok) {
         const freshVideo = await res.json()
         setEditingVideo(freshVideo)
+      } else {
+        setEditingVideo(video)
       }
     } catch (err) {
-      openVideoModal(video)
+      setEditingVideo(video)
     }
   }
 
