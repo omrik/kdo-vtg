@@ -26,11 +26,21 @@ def videos_to_csv(videos: list[Video]) -> str:
         "Date Created",
         "File Size (MB)",
         "Tags",
+        "Rating",
+        "Dominant Shot",
+        "GPS Lat",
+        "GPS Lon",
+        "Scene Count",
         "YOLO Enabled",
         "Scanned At",
     ])
     
     for video in videos:
+        dominant_shot = video.shot_types.get('dominant_shot', '') if video.shot_types else ''
+        gps_lat = video.gps_data.get('latitude', '') if video.gps_data else ''
+        gps_lon = video.gps_data.get('longitude', '') if video.gps_data else ''
+        scene_count = len(video.scenes) if video.scenes else ''
+        
         writer.writerow([
             video.filename,
             video.filepath,
@@ -45,6 +55,11 @@ def videos_to_csv(videos: list[Video]) -> str:
             video.date_created.strftime("%Y-%m-%d %H:%M:%S") if video.date_created else "",
             f"{video.file_size / (1024*1024):.2f}" if video.file_size else "",
             ", ".join(video.tags) if video.tags else "",
+            video.rating or "",
+            dominant_shot,
+            gps_lat,
+            gps_lon,
+            scene_count,
             "Yes" if video.yolo_enabled else "No",
             video.created_at.strftime("%Y-%m-%d %H:%M:%S") if video.created_at else "",
         ])
@@ -76,6 +91,11 @@ def videos_to_excel(videos: list[Video]) -> bytes:
             "Date Created",
             "File Size (MB)",
             "Tags",
+            "Rating",
+            "Dominant Shot",
+            "GPS Lat",
+            "GPS Lon",
+            "Scene Count",
             "YOLO Enabled",
             "Scanned At",
         ]
@@ -90,6 +110,11 @@ def videos_to_excel(videos: list[Video]) -> bytes:
             cell.alignment = Alignment(horizontal="center")
         
         for row_idx, video in enumerate(videos, 2):
+            dominant_shot = video.shot_types.get('dominant_shot', '') if video.shot_types else ''
+            gps_lat = video.gps_data.get('latitude', '') if video.gps_data else ''
+            gps_lon = video.gps_data.get('longitude', '') if video.gps_data else ''
+            scene_count = len(video.scenes) if video.scenes else ''
+            
             ws.cell(row=row_idx, column=1, value=video.filename)
             ws.cell(row=row_idx, column=2, value=video.filepath)
             ws.cell(row=row_idx, column=3, value=video.resolution or "")
@@ -103,8 +128,13 @@ def videos_to_excel(videos: list[Video]) -> bytes:
             ws.cell(row=row_idx, column=11, value=video.date_created.strftime("%Y-%m-%d %H:%M:%S") if video.date_created else "")
             ws.cell(row=row_idx, column=12, value=round(video.file_size / (1024*1024), 2) if video.file_size else "")
             ws.cell(row=row_idx, column=13, value=", ".join(video.tags) if video.tags else "")
-            ws.cell(row=row_idx, column=14, value="Yes" if video.yolo_enabled else "No")
-            ws.cell(row=row_idx, column=15, value=video.created_at.strftime("%Y-%m-%d %H:%M:%S") if video.created_at else "")
+            ws.cell(row=row_idx, column=14, value=video.rating or "")
+            ws.cell(row=row_idx, column=15, value=dominant_shot)
+            ws.cell(row=row_idx, column=16, value=gps_lat)
+            ws.cell(row=row_idx, column=17, value=gps_lon)
+            ws.cell(row=row_idx, column=18, value=scene_count)
+            ws.cell(row=row_idx, column=19, value="Yes" if video.yolo_enabled else "No")
+            ws.cell(row=row_idx, column=20, value=video.created_at.strftime("%Y-%m-%d %H:%M:%S") if video.created_at else "")
         
         for column in ws.columns:
             max_length = 0

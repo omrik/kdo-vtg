@@ -6,7 +6,7 @@ services:
       - "8080:8000"
     volumes:
       - ./config:/app/config:rw
-      - /path/to/videos:/media:ro
+      - /Users/omrik/Movies:/media:ro
     environment:
       - TZ=Europe/Bucharest
       - PUID=1000

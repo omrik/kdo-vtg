@@ -474,12 +474,55 @@ def get_videos(
                 "date_created": v.date_created.isoformat() if v.date_created else None,
                 "file_size": v.file_size,
                 "tags": v.tags or [],
+                "scenes": v.scenes,
+                "shot_types": v.shot_types,
+                "color_palette": v.color_palette,
+                "gps_data": v.gps_data,
+                "rating": v.rating,
                 "thumbnail": v.thumbnail,
                 "yolo_enabled": v.yolo_enabled,
+                "scene_detection_enabled": v.scene_detection_enabled,
                 "created_at": v.created_at.isoformat() if v.created_at else None,
             }
             for v in videos
         ]
+    }
+
+
+@app.get("/api/videos/{video_id}")
+def get_video(
+    video_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+    
+    return {
+        "id": video.id,
+        "filename": video.filename,
+        "filepath": video.filepath,
+        "resolution": video.resolution,
+        "width": video.width,
+        "height": video.height,
+        "duration": video.duration,
+        "fps": video.fps,
+        "codec": video.codec,
+        "bitrate": video.bitrate,
+        "camera_type": video.camera_type,
+        "date_created": video.date_created.isoformat() if video.date_created else None,
+        "file_size": video.file_size,
+        "tags": video.tags or [],
+        "scenes": video.scenes,
+        "shot_types": video.shot_types,
+        "color_palette": video.color_palette,
+        "gps_data": video.gps_data,
+        "rating": video.rating,
+        "thumbnail": video.thumbnail,
+        "yolo_enabled": video.yolo_enabled,
+        "scene_detection_enabled": video.scene_detection_enabled,
+        "created_at": video.created_at.isoformat() if video.created_at else None,
     }
 
 
@@ -894,6 +937,17 @@ def generate_edl(videos: list) -> str:
             edl_lines.append(f"* RESOLUTION: {video.resolution}")
         if video.duration:
             edl_lines.append(f"* DURATION: {video.duration:.2f}s")
+        if video.rating:
+            edl_lines.append(f"* RATING: {video.rating}/5")
+        if video.tags:
+            edl_lines.append(f"* TAGS: {', '.join(video.tags)}")
+        if video.shot_types:
+            dominant = video.shot_types.get('dominant_shot', 'N/A')
+            edl_lines.append(f"* DOMINANT SHOT: {dominant}")
+        if video.gps_data:
+            lat = video.gps_data.get('latitude', 'N/A')
+            lon = video.gps_data.get('longitude', 'N/A')
+            edl_lines.append(f"* GPS: {lat}, {lon}")
         edl_lines.append("")
     
     return "\n".join(edl_lines)
