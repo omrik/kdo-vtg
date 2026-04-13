@@ -217,6 +217,7 @@ function App() {
   const [isFirstRun, setIsFirstRun] = useState(false)
   const [needsSetup, setNeedsSetup] = useState(false)
   const [appLoading, setAppLoading] = useState(true)
+  const [appVersion, setAppVersion] = useState<string>('Loading...')
 
   const [loginForm, setLoginForm] = useState({ username: '', password: '' })
   const [isRegister, setIsRegister] = useState(false)
@@ -261,14 +262,8 @@ function App() {
   useEffect(() => {
     fetch(`${API_BASE}/api/version`)
       .then(res => res.json())
-      .then(data => {
-        const el = document.getElementById('version-display')
-        if (el) el.textContent = `Version: ${data.version}`
-      })
-      .catch(() => {
-        const el = document.getElementById('version-display')
-        if (el) el.textContent = 'Version: unknown'
-      })
+      .then(data => setAppVersion(data.version || 'unknown'))
+      .catch(() => setAppVersion('unknown'))
   }, [])
 
   const checkSetupStatus = async () => {
@@ -2081,7 +2076,7 @@ function App() {
                     <Video size={32} />
                   </div>
                   <div style={{ fontWeight: 600, fontSize: '1.1rem' }}>KDO Video Tagger</div>
-                  <div id="version-display" style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Version: Loading...</div>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Version: {appVersion}</div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
                     A self-hosted video metadata tagger for organizing video projects.
                   </div>
