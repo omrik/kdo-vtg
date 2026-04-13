@@ -1860,7 +1860,7 @@ function App() {
                         onClick={(e) => { e.stopPropagation(); deleteCollection(col.id) }}
                         title="Delete collection"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={16} color="var(--text-secondary)" />
                       </button>
                     </div>
                     <div className="folder-info">
@@ -2000,7 +2000,7 @@ function App() {
                         onClick={(e) => { e.stopPropagation(); deleteProject(proj.id) }}
                         title="Delete project"
                       >
-                        <Trash2 size={16} />
+                        <Trash2 size={16} color="var(--text-secondary)" />
                       </button>
                     </div>
                     <div className="folder-info">

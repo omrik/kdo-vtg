@@ -1076,6 +1076,7 @@ def list_collections(
                 "name": c.name,
                 "description": c.description,
                 "color": c.color,
+                "video_count": len(c.videos),
                 "created_at": c.created_at.isoformat() if c.created_at else None,
             }
             for c in collections
