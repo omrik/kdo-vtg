@@ -65,11 +65,17 @@
 - [x] **Collections** - Group videos into projects
 - [x] **Advanced filters** - Resolution, duration, date range
 
-### Phase 3: Analysis Features
-- [x] **Scene detection** - Identify shot boundaries
-- [x] **Shot type analysis** - WS/MS/CU/ECU detection via YOLO
-- [x] **Color palette** - Extract dominant colors
-- [x] **GPS timeline** - Parse and visualize locations
+### Phase 3: Analysis Features (UI Display)
+- [x] **Scene detection UI** - Display detected scenes in video detail modal
+- [x] **Shot type UI** - Show WS/MS/CU/ECU breakdown per video
+- [x] **Color palette UI** - Display extracted colors as visual swatches
+- [x] **GPS timeline UI** - Show location on map or coordinates
+
+### Phase 3: Analysis Backend (Completed)
+- [x] **Scene detection** - Identify shot boundaries (backend done)
+- [x] **Shot type analysis** - WS/MS/CU/ECU detection via YOLO (backend done)
+- [x] **Color palette** - Extract dominant colors (backend done)
+- [x] **GPS timeline** - Parse and visualize locations (backend done)
 
 ### Phase 4: Production Features
 - [x] **EDL export** - For Premiere/DaVinci Resolve
