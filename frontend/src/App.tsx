@@ -528,6 +528,11 @@ function App() {
       if (res.ok) {
         const data = await res.json()
         setVideos(videos.map(v => v.id === videoId ? { ...v, rating: data.rating } : v))
+        setCollectionVideos(collectionVideos.map(v => v.id === videoId ? { ...v, rating: data.rating } : v))
+        setProjectVideos(projectVideos.map(v => v.id === videoId ? { ...v, rating: data.rating } : v))
+        if (editingVideo && editingVideo.id === videoId) {
+          setEditingVideo({ ...editingVideo, rating: data.rating })
+        }
       }
     } catch (err) {
       setError('Failed to rate video')
@@ -1482,11 +1487,11 @@ function App() {
               ) : viewMode === 'grid' ? (
                 <div className="video-grid">
                   {videos.map((video) => (
-                    <div key={video.id} className="video-card" onClick={() => toggleVideoSelection(video.id)}>
+                    <div key={video.id} className="video-card" onClick={() => setEditingVideo(video)}>
                       <input 
                         type="checkbox" 
                         checked={selectedVideos.has(video.id)}
-                        onChange={() => toggleVideoSelection(video.id)}
+                        onChange={(e) => { e.stopPropagation(); toggleVideoSelection(video.id) }}
                         style={{ position: 'absolute', top: '8px', left: '8px', zIndex: 2 }}
                       />
                       <div className="video-thumbnail">
@@ -1502,7 +1507,7 @@ function App() {
                           <div className="yolo-badge">YOLO</div>
                         )}
                       </div>
-                      <div className="video-info">
+                        <div className="video-info">
                         <div className="video-name" title={video.filename}>{video.filename}</div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '2px', marginBottom: '0.25rem' }}>
                           {[1, 2, 3, 4, 5].map(star => (
@@ -1589,16 +1594,17 @@ function App() {
                               onChange={() => toggleVideoSelection(video.id)}
                             />
                           </td>
-                          <td title={video.filepath}>{video.filename}</td>
-                          <td>
+                          <td title={video.filepath} onClick={() => setEditingVideo(video)} style={{ cursor: 'pointer' }}>{video.filename}</td>
+                           <td>
                             {video.thumbnail ? (
                               <img 
                                 src={`${API_BASE}/api/thumbnails/${video.id}`} 
                                 alt="" 
-                                style={{ width: '60px', height: '34px', objectFit: 'cover', borderRadius: '4px' }}
+                                style={{ width: '60px', height: '34px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }}
+                                onClick={() => setEditingVideo(video)}
                               />
                             ) : (
-                              <Image size={20} style={{ opacity: 0.5 }} />
+                              <Image size={20} style={{ opacity: 0.5, cursor: 'pointer' }} onClick={() => setEditingVideo(video)} />
                             )}
                           </td>
                           <td>{video.resolution || '-'}</td>
@@ -1697,7 +1703,7 @@ function App() {
                 ) : viewMode === 'grid' ? (
                   <div className="video-grid">
                     {collectionVideos.map((video) => (
-                      <div key={video.id} className="video-card">
+                      <div key={video.id} className="video-card" onClick={() => setEditingVideo(video)}>
                         <div className="video-thumbnail">
                           {video.thumbnail ? (
                             <img src={`${API_BASE}/api/thumbnails/${video.id}`} alt={video.filename} />
@@ -1735,7 +1741,7 @@ function App() {
                       </thead>
                       <tbody>
                         {collectionVideos.map((video) => (
-                          <tr key={video.id}>
+                          <tr key={video.id} onClick={() => setEditingVideo(video)} style={{ cursor: 'pointer' }}>
                             <td title={video.filepath}>{video.filename}</td>
                             <td>{video.resolution || '-'}</td>
                             <td>{formatDuration(video.duration)}</td>
@@ -1838,7 +1844,7 @@ function App() {
                 ) : viewMode === 'grid' ? (
                   <div className="video-grid">
                     {projectVideos.map((video) => (
-                      <div key={video.id} className="video-card">
+                      <div key={video.id} className="video-card" onClick={() => setEditingVideo(video)}>
                         <div className="video-thumbnail">
                           {video.thumbnail ? (
                             <img src={`${API_BASE}/api/thumbnails/${video.id}`} alt={video.filename} />
@@ -1876,7 +1882,7 @@ function App() {
                       </thead>
                       <tbody>
                         {projectVideos.map((video) => (
-                          <tr key={video.id}>
+                          <tr key={video.id} onClick={() => setEditingVideo(video)} style={{ cursor: 'pointer' }}>
                             <td title={video.filepath}>{video.filename}</td>
                             <td>{video.resolution || '-'}</td>
                             <td>{formatDuration(video.duration)}</td>
