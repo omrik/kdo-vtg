@@ -26,6 +26,7 @@ import {
   Star,
   Copy,
 } from 'lucide-react'
+import { VideoModal } from './components/VideoModal'
 
 interface User {
   id: number
@@ -191,7 +192,6 @@ function App() {
   const [allTags, setAllTags] = useState<string[]>([])
   const [selectedTag, setSelectedTag] = useState<string | null>(null)
   const [editingVideo, setEditingVideo] = useState<VideoItem | null>(null)
-  const [newTagInput, setNewTagInput] = useState('')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
   const [selectedVideos, setSelectedVideos] = useState<Set<number>>(new Set())
   const [showAddToModal, setShowAddToModal] = useState<'collection' | 'project' | null>(null)
@@ -486,7 +486,13 @@ function App() {
       })
       if (res.ok) {
         const data = await res.json()
-        setVideos(videos.map(v => v.id === videoId ? { ...v, tags: data.tags } : v))
+        const updatedVideos = videos.map(v => v.id === videoId ? { ...v, tags: data.tags } : v)
+        setVideos(updatedVideos)
+        setCollectionVideos(collectionVideos.map(v => v.id === videoId ? { ...v, tags: data.tags } : v))
+        setProjectVideos(projectVideos.map(v => v.id === videoId ? { ...v, tags: data.tags } : v))
+        if (editingVideo && editingVideo.id === videoId) {
+          setEditingVideo({ ...editingVideo, tags: data.tags })
+        }
         fetchAllTags()
       }
     } catch (err) {
@@ -502,7 +508,13 @@ function App() {
       })
       if (res.ok) {
         const data = await res.json()
-        setVideos(videos.map(v => v.id === videoId ? { ...v, tags: data.tags } : v))
+        const updatedVideos = videos.map(v => v.id === videoId ? { ...v, tags: data.tags } : v)
+        setVideos(updatedVideos)
+        setCollectionVideos(collectionVideos.map(v => v.id === videoId ? { ...v, tags: data.tags } : v))
+        setProjectVideos(projectVideos.map(v => v.id === videoId ? { ...v, tags: data.tags } : v))
+        if (editingVideo && editingVideo.id === videoId) {
+          setEditingVideo({ ...editingVideo, tags: data.tags })
+        }
         fetchAllTags()
       }
     } catch (err) {
@@ -2220,250 +2232,17 @@ function App() {
       )}
 
       {editingVideo && (
-        <div className="modal-overlay" onClick={() => setEditingVideo(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px', maxHeight: '85vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', gap: '1rem' }}>
-              <div style={{ flex: 1 }}>
-                <h2 style={{ margin: 0, marginBottom: '0.5rem', fontSize: '1.1rem', wordBreak: 'break-word' }}>{editingVideo.filename}</h2>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', wordBreak: 'break-all' }}>{editingVideo.filepath}</div>
-              </div>
-              <button className="btn btn-secondary" onClick={() => setEditingVideo(null)} style={{ padding: '0.25rem 0.5rem' }}>
-                <X size={16} />
-              </button>
-            </div>
-            
-            {editingVideo.thumbnail && (
-              <div style={{ marginBottom: '1rem', borderRadius: '8px', overflow: 'hidden', background: 'var(--bg-tertiary)' }}>
-                <img 
-                  src={`${API_BASE}/api/thumbnails/${editingVideo.id}`} 
-                  alt={editingVideo.filename}
-                  style={{ width: '100%', maxHeight: '200px', objectFit: 'contain' }}
-                />
-              </div>
-            )}
-            
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginBottom: '1rem' }}>
-              <div className="form-group">
-                <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Resolution</label>
-                <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>{editingVideo.resolution || '-'}</div>
-              </div>
-              <div className="form-group">
-                <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Duration</label>
-                <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>{formatDuration(editingVideo.duration)}</div>
-              </div>
-              <div className="form-group">
-                <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Camera</label>
-                <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>{editingVideo.camera_type || '-'}</div>
-              </div>
-              <div className="form-group">
-                <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>FPS</label>
-                <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>{editingVideo.fps ? `${editingVideo.fps.toFixed(1)}` : '-'}</div>
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>Rating</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                {[1, 2, 3, 4, 5].map(star => (
-                  <Star
-                    key={star}
-                    size={24}
-                    fill={editingVideo.rating && star <= editingVideo.rating ? 'var(--warning)' : 'none'}
-                    color={editingVideo.rating && star <= editingVideo.rating ? 'var(--warning)' : 'var(--text-secondary)'}
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => rateVideo(editingVideo.id, star)}
-                  />
-                ))}
-                {editingVideo.rating && (
-                  <button 
-                    className="btn btn-link" 
-                    style={{ fontSize: '0.75rem', marginLeft: '0.5rem' }}
-                    onClick={() => rateVideo(editingVideo.id, 0)}
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {editingVideo.gps_data && (
-              <div className="form-group">
-                <label>Location (GPS)</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
-                  <span>{editingVideo.gps_data.latitude.toFixed(6)}, {editingVideo.gps_data.longitude.toFixed(6)}</span>
-                  <a 
-                    href={`https://www.google.com/maps?q=${editingVideo.gps_data.latitude},${editingVideo.gps_data.longitude}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-secondary"
-                    style={{ fontSize: '0.7rem', padding: '2px 8px' }}
-                  >
-                    Open Map
-                  </a>
-                </div>
-              </div>
-            )}
-
-            {editingVideo.shot_types && (
-              <div className="form-group">
-                <label>Shot Types</label>
-                <div style={{ padding: '0.5rem', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
-                  <div style={{ fontSize: '0.75rem', marginBottom: '0.5rem' }}>
-                    Dominant: <strong>{editingVideo.shot_types.dominant_shot}</strong>
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.25rem', height: '20px', borderRadius: '4px', overflow: 'hidden' }}>
-                    {(['WS', 'MS', 'CU', 'ECU'] as const).map(type => {
-                      const count = editingVideo.shot_types!.counts[type]
-                      const total = editingVideo.shot_types!.total_analyzed || 1
-                      const pct = (count / total * 100).toFixed(0)
-                      return (
-                        <div 
-                          key={type}
-                          style={{ 
-                            width: `${pct}%`, 
-                            background: type === 'WS' ? '#3b82f6' : type === 'MS' ? '#22c55e' : type === 'CU' ? '#f59e0b' : '#ef4444',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '0.65rem',
-                            color: 'white',
-                            fontWeight: 600
-                          }}
-                          title={`${type}: ${count} (${pct}%)`}
-                        >
-                          {pct}
-                        </div>
-                      )
-                    })}
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                    <span>WS: Wide Shot</span>
-                    <span>MS: Medium Shot</span>
-                    <span>CU: Close Up</span>
-                    <span>ECU: Extreme CU</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {editingVideo.color_palette && editingVideo.color_palette.length > 0 && (
-              <div className="form-group">
-                <label>Color Palette</label>
-                <div style={{ display: 'flex', gap: '0.25rem', padding: '0.5rem', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
-                  {editingVideo.color_palette.map((color, i) => (
-                    <div 
-                      key={i} 
-                      style={{ 
-                        background: color.hex, 
-                        width: '40px', 
-                        height: '40px', 
-                        borderRadius: '4px',
-                        display: 'flex',
-                        alignItems: 'flex-end',
-                        justifyContent: 'center',
-                        paddingBottom: '2px',
-                        fontSize: '0.5rem',
-                        color: 'white',
-                        textShadow: '0 1px 2px rgba(0,0,0,0.5)'
-                      }}
-                      title={`${color.hex} (${color.percentage.toFixed(1)}%)`}
-                    >
-                      {color.percentage.toFixed(0)}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {editingVideo.scenes && editingVideo.scenes.length > 0 && (
-              <div className="form-group">
-                <label>Scenes ({editingVideo.scenes.length} detected)</label>
-                <div style={{ maxHeight: '150px', overflowY: 'auto', padding: '0.5rem', background: 'var(--bg-tertiary)', borderRadius: '6px', fontSize: '0.75rem' }}>
-                  {editingVideo.scenes.slice(0, 20).map((scene, i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.25rem 0', borderBottom: '1px solid var(--border)' }}>
-                      <span>Scene {i + 1}</span>
-                      <span>{formatDuration(scene.start_time)} - {formatDuration(scene.end_time)}</span>
-                      <span style={{ color: 'var(--text-secondary)' }}>{scene.duration.toFixed(1)}s</span>
-                    </div>
-                  ))}
-                  {editingVideo.scenes.length > 20 && (
-                    <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '0.5rem' }}>
-                      +{editingVideo.scenes.length - 20} more scenes
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            <hr style={{ margin: '1rem 0', borderColor: 'var(--border)' }} />
-
-            <div className="form-group">
-              <label>Tags</label>
-              <div className="tags-container" style={{ padding: '0.5rem', background: 'var(--bg-tertiary)', borderRadius: '6px', minHeight: '40px' }}>
-                {editingVideo.tags?.length ? editingVideo.tags.map((tag, i) => (
-                  <span key={i} className="tag" onClick={() => {
-                    removeTagFromVideo(editingVideo.id, tag)
-                    setEditingVideo({ ...editingVideo, tags: editingVideo.tags?.filter(t => t !== tag) || null })
-                  }} style={{ cursor: 'pointer' }}>
-                    {tag} <X size={10} />
-                  </span>
-                )) : <span style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No tags</span>}
-              </div>
-            </div>
-            <div className="form-group">
-              <label>Add Tag</label>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <input
-                  type="text"
-                  value={newTagInput}
-                  onChange={(e) => setNewTagInput(e.target.value)}
-                  placeholder="Enter tag name"
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && newTagInput.trim()) {
-                      addTagToVideo(editingVideo.id, newTagInput.trim())
-                      setEditingVideo({ ...editingVideo, tags: [...(editingVideo.tags || []), newTagInput.trim()] })
-                      setNewTagInput('')
-                    }
-                  }}
-                  style={{ flex: 1 }}
-                />
-                <button 
-                  className="btn btn-primary" 
-                  onClick={() => {
-                    if (newTagInput.trim()) {
-                      addTagToVideo(editingVideo.id, newTagInput.trim())
-                      setEditingVideo({ ...editingVideo, tags: [...(editingVideo.tags || []), newTagInput.trim()] })
-                      setNewTagInput('')
-                    }
-                  }}
-                >
-                  <Plus size={14} />
-                  Add
-                </button>
-              </div>
-              {allTags.length > 0 && (
-                <>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>Or select existing:</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem', marginTop: '0.25rem' }}>
-                    {allTags.filter(t => !editingVideo.tags?.includes(t)).slice(0, 10).map(tag => (
-                      <button 
-                        key={tag} 
-                        className="tag" 
-                        style={{ cursor: 'pointer', background: 'none', border: 'none' }}
-                        onClick={() => {
-                          addTagToVideo(editingVideo.id, tag)
-                          setEditingVideo({ ...editingVideo, tags: [...(editingVideo.tags || []), tag] })
-                        }}
-                      >
-                        + {tag}
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+        <VideoModal
+          video={editingVideo}
+          onClose={() => setEditingVideo(null)}
+          onRate={rateVideo}
+          onAddTag={addTagToVideo}
+          onRemoveTag={removeTagFromVideo}
+          allTags={allTags}
+          formatDuration={formatDuration}
+          api={{ API_BASE }}
+          token={token}
+        />
       )}
 
       {showAddToModal && (
