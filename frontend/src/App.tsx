@@ -2082,8 +2082,16 @@ function App() {
                   </div>
                   <div style={{ fontWeight: 600, fontSize: '1.1rem' }}>KDO Video Tagger</div>
                   <div id="version-display" style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Version: Loading...</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
                     A self-hosted video metadata tagger for organizing video projects.
+                  </div>
+                  <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <a href="https://github.com/omrik/kdo-vtg" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '4px 12px' }}>
+                      GitHub
+                    </a>
+                    <a href="https://github.com/omrik/kdo-vtg/blob/main/docs/DEVELOPMENT.md" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '4px 12px' }}>
+                      Documentation
+                    </a>
                   </div>
                 </div>
               </div>
