@@ -1236,7 +1236,7 @@ function App() {
               <div className="settings-grid">
                 <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                   <label style={{ marginBottom: '0.5rem' }}>Scan Options</label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', padding: '0.75rem', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
                       <input
                         type="checkbox"
@@ -1245,7 +1245,7 @@ function App() {
                         style={{ width: '18px', height: '18px' }}
                       />
                       <div>
-                        <div style={{ fontWeight: 500 }}>Object Detection (YOLO)</div>
+                        <div style={{ fontWeight: 500 }}>Object Detection</div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Detect objects in video frames</div>
                       </div>
                     </label>
@@ -1258,7 +1258,7 @@ function App() {
                       />
                       <div>
                         <div style={{ fontWeight: 500 }}>Scene Detection</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Detect scene changes and shot boundaries</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Detect scene changes</div>
                       </div>
                     </label>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
@@ -1270,7 +1270,7 @@ function App() {
                       />
                       <div>
                         <div style={{ fontWeight: 500 }}>Shot Type Analysis</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Classify shots as wide, medium, close-up</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Classify shots as WS/MS/CU</div>
                       </div>
                     </label>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
@@ -1282,15 +1282,9 @@ function App() {
                       />
                       <div>
                         <div style={{ fontWeight: 500 }}>Color Palette</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Extract dominant colors from frames</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Extract dominant colors</div>
                       </div>
                     </label>
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                  <label style={{ marginBottom: '0.5rem' }}>After Scan</label>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
                       <input
                         type="checkbox"
@@ -1299,14 +1293,14 @@ function App() {
                         style={{ width: '18px', height: '18px' }}
                       />
                       <div>
-                        <div style={{ fontWeight: 500 }}>Create collections by tag</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Automatically organize videos into collections based on their tags</div>
+                        <div style={{ fontWeight: 500 }}>Create by Tag</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Auto-create collections</div>
                       </div>
                     </label>
                   </div>
                 </div>
 
-                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <div className="form-group">
                   <label htmlFor="sample_interval">Sample Interval (seconds)</label>
                   <input
                     type="number"
@@ -1315,7 +1309,7 @@ function App() {
                     max={60}
                     value={scanSettings.sample_interval}
                     onChange={(e) => setScanSettings({ ...scanSettings, sample_interval: parseInt(e.target.value) })}
-                    style={{ width: '100px' }}
+                    style={{ width: '80px' }}
                   />
                 </div>
               </div>
