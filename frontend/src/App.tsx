@@ -696,6 +696,55 @@ function App() {
     }
   }
 
+  const createCollectionsByRating = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/videos`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      if (!res.ok) throw new Error('Failed to fetch videos')
+      
+      const data = await res.json()
+      const videos = data.videos
+      
+      const ratings = [5, 4, 3, 2, 1]
+      let created = 0
+      
+      for (const rating of ratings) {
+        const ratedVideos = videos.filter((v: VideoItem) => v.rating === rating)
+        if (ratedVideos.length > 0) {
+          const name = `${rating} Star${rating !== 1 ? 's' : ''}`
+          const createRes = await fetch(`${API_BASE}/api/collections`, {
+            method: 'POST',
+            headers: { 
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({ name, color: '#f59e0b' })
+          })
+          if (createRes.ok) {
+            const collection = await createRes.json()
+            for (const video of ratedVideos) {
+              await fetch(`${API_BASE}/api/collections/${collection.id}/videos`, {
+                method: 'POST',
+                headers: { 
+                  'Content-Type': 'application/json',
+                  ...(token ? { Authorization: `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify({ video_id: video.id })
+              })
+            }
+            created++
+          }
+        }
+      }
+      
+      alert(`Created ${created} collections from ratings`)
+      fetchCollections()
+    } catch (err) {
+      setError('Failed to create collections by rating')
+    }
+  }
+
   const deleteCollection = async (id: number) => {
     if (!window.confirm('Delete this collection?')) return
     try {
@@ -1699,6 +1748,10 @@ function App() {
                   <button className="btn btn-secondary" onClick={createCollectionsByTag}>
                     <Tag size={14} />
                     By Tag
+                  </button>
+                  <button className="btn btn-secondary" onClick={createCollectionsByRating}>
+                    <Star size={14} />
+                    By Rating
                   </button>
                   <button className="btn btn-primary" onClick={() => setShowNewCollectionModal(true)}>
                     <Plus size={16} />
