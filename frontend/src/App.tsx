@@ -534,6 +534,20 @@ function App() {
     }
   }
 
+  const openVideoModal = async (video: VideoItem) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/videos/${video.id}`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
+      if (res.ok) {
+        const freshVideo = await res.json()
+        setEditingVideo(freshVideo)
+      }
+    } catch (err) {
+      openVideoModal(video)
+    }
+  }
+
   const fetchStats = async () => {
     try {
       const res = await fetch(`${API_BASE}/api/stats`, {
@@ -1482,7 +1496,7 @@ function App() {
               ) : viewMode === 'grid' ? (
                 <div className="video-grid">
                   {videos.map((video) => (
-                    <div key={video.id} className="video-card" onClick={() => setEditingVideo(video)}>
+                    <div key={video.id} className="video-card" onClick={() => openVideoModal(video)}>
                       <input 
                         type="checkbox" 
                         checked={selectedVideos.has(video.id)}
@@ -1534,7 +1548,7 @@ function App() {
                           <button 
                             className="btn btn-secondary" 
                             style={{ padding: '2px 4px', fontSize: '0.65rem' }}
-                            onClick={(e) => { e.stopPropagation(); setEditingVideo(video) }}
+                            onClick={(e) => { e.stopPropagation(); openVideoModal(video) }}
                           >
                             <Plus size={10} />
                           </button>
@@ -1589,17 +1603,17 @@ function App() {
                               onChange={() => toggleVideoSelection(video.id)}
                             />
                           </td>
-                          <td title={video.filepath} onClick={() => setEditingVideo(video)} style={{ cursor: 'pointer' }}>{video.filename}</td>
+                          <td title={video.filepath} onClick={() => openVideoModal(video)} style={{ cursor: 'pointer' }}>{video.filename}</td>
                            <td>
                             {video.thumbnail ? (
                               <img 
                                 src={`${API_BASE}/api/thumbnails/${video.id}`} 
                                 alt="" 
                                 style={{ width: '60px', height: '34px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }}
-                                onClick={() => setEditingVideo(video)}
+                                onClick={() => openVideoModal(video)}
                               />
                             ) : (
-                              <Image size={20} style={{ opacity: 0.5, cursor: 'pointer' }} onClick={() => setEditingVideo(video)} />
+                              <Image size={20} style={{ opacity: 0.5, cursor: 'pointer' }} onClick={() => openVideoModal(video)} />
                             )}
                           </td>
                           <td>{video.resolution || '-'}</td>
@@ -1616,7 +1630,7 @@ function App() {
                               <button 
                                 className="btn btn-secondary" 
                                 style={{ padding: '2px 6px', fontSize: '0.7rem' }}
-                                onClick={() => setEditingVideo(video)}
+                                onClick={() => openVideoModal(video)}
                               >
                                 <Plus size={12} />
                               </button>
@@ -1698,7 +1712,7 @@ function App() {
                 ) : viewMode === 'grid' ? (
                   <div className="video-grid">
                     {collectionVideos.map((video) => (
-                      <div key={video.id} className="video-card" onClick={() => setEditingVideo(video)}>
+                      <div key={video.id} className="video-card" onClick={() => openVideoModal(video)}>
                         <div className="video-thumbnail">
                           {video.thumbnail ? (
                             <img src={`${API_BASE}/api/thumbnails/${video.id}`} alt={video.filename} />
@@ -1736,7 +1750,7 @@ function App() {
                       </thead>
                       <tbody>
                         {collectionVideos.map((video) => (
-                          <tr key={video.id} onClick={() => setEditingVideo(video)} style={{ cursor: 'pointer' }}>
+                          <tr key={video.id} onClick={() => openVideoModal(video)} style={{ cursor: 'pointer' }}>
                             <td title={video.filepath}>{video.filename}</td>
                             <td>{video.resolution || '-'}</td>
                             <td>{formatDuration(video.duration)}</td>
@@ -1839,7 +1853,7 @@ function App() {
                 ) : viewMode === 'grid' ? (
                   <div className="video-grid">
                     {projectVideos.map((video) => (
-                      <div key={video.id} className="video-card" onClick={() => setEditingVideo(video)}>
+                      <div key={video.id} className="video-card" onClick={() => openVideoModal(video)}>
                         <div className="video-thumbnail">
                           {video.thumbnail ? (
                             <img src={`${API_BASE}/api/thumbnails/${video.id}`} alt={video.filename} />
@@ -1877,7 +1891,7 @@ function App() {
                       </thead>
                       <tbody>
                         {projectVideos.map((video) => (
-                          <tr key={video.id} onClick={() => setEditingVideo(video)} style={{ cursor: 'pointer' }}>
+                          <tr key={video.id} onClick={() => openVideoModal(video)} style={{ cursor: 'pointer' }}>
                             <td title={video.filepath}>{video.filename}</td>
                             <td>{video.resolution || '-'}</td>
                             <td>{formatDuration(video.duration)}</td>
@@ -2205,35 +2219,48 @@ function App() {
 
       {editingVideo && (
         <div className="modal-overlay" onClick={() => setEditingVideo(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', maxHeight: '80vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h2 style={{ margin: 0, fontSize: '1.1rem', wordBreak: 'break-all' }}>{editingVideo.filename}</h2>
+          <div className="modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '700px', maxHeight: '85vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', gap: '1rem' }}>
+              <div style={{ flex: 1 }}>
+                <h2 style={{ margin: 0, marginBottom: '0.5rem', fontSize: '1.1rem', wordBreak: 'break-word' }}>{editingVideo.filename}</h2>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', wordBreak: 'break-all' }}>{editingVideo.filepath}</div>
+              </div>
               <button className="btn btn-secondary" onClick={() => setEditingVideo(null)} style={{ padding: '0.25rem 0.5rem' }}>
                 <X size={16} />
               </button>
             </div>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+            {editingVideo.thumbnail && (
+              <div style={{ marginBottom: '1rem', borderRadius: '8px', overflow: 'hidden', background: 'var(--bg-tertiary)' }}>
+                <img 
+                  src={`${API_BASE}/api/thumbnails/${editingVideo.id}`} 
+                  alt={editingVideo.filename}
+                  style={{ width: '100%', maxHeight: '200px', objectFit: 'contain' }}
+                />
+              </div>
+            )}
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginBottom: '1rem' }}>
               <div className="form-group">
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Resolution</label>
-                <div>{editingVideo.resolution || '-'}</div>
+                <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Resolution</label>
+                <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>{editingVideo.resolution || '-'}</div>
               </div>
               <div className="form-group">
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Duration</label>
-                <div>{formatDuration(editingVideo.duration)}</div>
+                <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Duration</label>
+                <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>{formatDuration(editingVideo.duration)}</div>
               </div>
               <div className="form-group">
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Camera</label>
-                <div>{editingVideo.camera_type || '-'}</div>
+                <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Camera</label>
+                <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>{editingVideo.camera_type || '-'}</div>
               </div>
               <div className="form-group">
-                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>FPS</label>
-                <div>{editingVideo.fps ? `${editingVideo.fps.toFixed(1)} fps` : '-'}</div>
+                <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>FPS</label>
+                <div style={{ fontSize: '0.875rem', fontWeight: 500 }}>{editingVideo.fps ? `${editingVideo.fps.toFixed(1)}` : '-'}</div>
               </div>
             </div>
 
             <div className="form-group">
-              <label>Rating</label>
+              <label style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>Rating</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
                 {[1, 2, 3, 4, 5].map(star => (
                   <Star
