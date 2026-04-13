@@ -1234,35 +1234,26 @@ function App() {
               </div>
 
               <div className="settings-grid">
-                <div className="form-group">
-                  <label>Selected Folder</label>
-                  <div style={{ padding: '0.5rem', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
-                    {selectedFolder || 'No folder selected'}
-                  </div>
-                </div>
-
                 <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                   <label style={{ marginBottom: '0.5rem' }}>Scan Options</label>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
                       <input
-                        type="radio"
-                        name="scan-option"
-                        checked={scanSettings.yolo_enabled && !scanSettings.scene_detection_enabled && !scanSettings.shot_type_enabled && !scanSettings.color_palette_enabled}
-                        onChange={() => setScanSettings({ ...scanSettings, yolo_enabled: true, scene_detection_enabled: false, shot_type_enabled: false, color_palette_enabled: false })}
+                        type="checkbox"
+                        checked={scanSettings.yolo_enabled}
+                        onChange={(e) => setScanSettings({ ...scanSettings, yolo_enabled: e.target.checked })}
                         style={{ width: '18px', height: '18px' }}
                       />
                       <div>
-                        <div style={{ fontWeight: 500 }}>Basic Scan</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Extract metadata only</div>
+                        <div style={{ fontWeight: 500 }}>Object Detection (YOLO)</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Detect objects in video frames</div>
                       </div>
                     </label>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
                       <input
-                        type="radio"
-                        name="scan-option"
+                        type="checkbox"
                         checked={scanSettings.scene_detection_enabled}
-                        onChange={() => setScanSettings({ ...scanSettings, yolo_enabled: true, scene_detection_enabled: true, shot_type_enabled: false, color_palette_enabled: false })}
+                        onChange={(e) => setScanSettings({ ...scanSettings, scene_detection_enabled: e.target.checked })}
                         style={{ width: '18px', height: '18px' }}
                       />
                       <div>
@@ -1272,10 +1263,9 @@ function App() {
                     </label>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
                       <input
-                        type="radio"
-                        name="scan-option"
+                        type="checkbox"
                         checked={scanSettings.shot_type_enabled}
-                        onChange={() => setScanSettings({ ...scanSettings, yolo_enabled: true, scene_detection_enabled: false, shot_type_enabled: true, color_palette_enabled: false })}
+                        onChange={(e) => setScanSettings({ ...scanSettings, shot_type_enabled: e.target.checked })}
                         style={{ width: '18px', height: '18px' }}
                       />
                       <div>
@@ -1285,10 +1275,9 @@ function App() {
                     </label>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
                       <input
-                        type="radio"
-                        name="scan-option"
+                        type="checkbox"
                         checked={scanSettings.color_palette_enabled}
-                        onChange={() => setScanSettings({ ...scanSettings, yolo_enabled: true, scene_detection_enabled: false, shot_type_enabled: false, color_palette_enabled: true })}
+                        onChange={(e) => setScanSettings({ ...scanSettings, color_palette_enabled: e.target.checked })}
                         style={{ width: '18px', height: '18px' }}
                       />
                       <div>
@@ -1299,7 +1288,25 @@ function App() {
                   </div>
                 </div>
 
-                <div className="form-group">
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ marginBottom: '0.5rem' }}>After Scan</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.75rem', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={scanSettings.afterScan === 'createByTag'}
+                        onChange={(e) => setScanSettings({ ...scanSettings, afterScan: e.target.checked ? 'createByTag' : 'none' })}
+                        style={{ width: '18px', height: '18px' }}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 500 }}>Create collections by tag</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Automatically organize videos into collections based on their tags</div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
                   <label htmlFor="sample_interval">Sample Interval (seconds)</label>
                   <input
                     type="number"
@@ -1308,39 +1315,20 @@ function App() {
                     max={60}
                     value={scanSettings.sample_interval}
                     onChange={(e) => setScanSettings({ ...scanSettings, sample_interval: parseInt(e.target.value) })}
+                    style={{ width: '100px' }}
                   />
-                </div>
-
-                <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                  <label style={{ marginBottom: '0.5rem' }}>After Scan</label>
-                  <div style={{ display: 'flex', gap: '1.5rem', padding: '0.75rem', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                      <input
-                        type="radio"
-                        name="afterScan"
-                        value="none"
-                        checked={scanSettings.afterScan === 'none'}
-                        onChange={() => setScanSettings({ ...scanSettings, afterScan: 'none' })}
-                        style={{ width: '18px', height: '18px' }}
-                      />
-                      Do nothing
-                    </label>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                      <input
-                        type="radio"
-                        name="afterScan"
-                        value="createByTag"
-                        checked={scanSettings.afterScan === 'createByTag'}
-                        onChange={() => setScanSettings({ ...scanSettings, afterScan: 'createByTag' })}
-                        style={{ width: '18px', height: '18px' }}
-                      />
-                      Create collections by tag
-                    </label>
-                  </div>
                 </div>
               </div>
 
-              <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.5rem' }}>
+              <div style={{ marginTop: '1.5rem', display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: '200px', padding: '0.5rem', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Selected: </span>
+                  <span style={{ fontWeight: 500 }}>{selectedFolder || 'No folder selected'}</span>
+                </div>
+                <button className="btn btn-secondary" onClick={() => setActiveTab('folders')}>
+                  <FolderOpen size={16} />
+                  Change Folder
+                </button>
                 <button
                   className="btn btn-primary"
                   onClick={startScan}
@@ -1348,10 +1336,6 @@ function App() {
                 >
                   <Play size={16} />
                   {currentScan?.status === 'running' ? 'Scanning...' : 'Start Scan'}
-                </button>
-                <button className="btn btn-secondary" onClick={() => setActiveTab('folders')}>
-                  <FolderOpen size={16} />
-                  Change Folder
                 </button>
               </div>
             </div>
