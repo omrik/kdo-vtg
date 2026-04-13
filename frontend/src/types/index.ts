@@ -75,22 +75,40 @@ export interface User {
 }
 
 export interface Folder {
-  path: string
   name: string
+  path: string
   video_count: number
 }
 
-export interface FolderContent {
+export interface ContentItem {
   name: string
   path: string
   type: 'folder' | 'video'
   video_count?: number
+  size?: number
 }
 
 export interface Stats {
   total_videos: number
   total_duration: number
   total_size: number
-  resolutions: Record<string, number>
-  cameras: Record<string, number>
+  total_duration_hours?: string
+  resolutions: string[]
+  cameras: string[]
+}
+
+export interface DuplicateInfo {
+  original: { id: number; filepath: string; filename: string }
+  duplicate: { id: number; filepath: string; filename: string }
+  filename: string
+  duration: number | null
+  resolution: string | null
+  file_size: number | null
+}
+
+export interface ScanJob {
+  id: number
+  status: string
+  total_files: number
+  processed_files: number
 }
