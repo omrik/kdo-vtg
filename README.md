@@ -1,25 +1,46 @@
-# KDO Video Tagger (kdo-vtg)
+# KDO Video Tagger
 
-**KDO Video Tagger** - A self-hosted video metadata tagger with web UI for NAS and local Docker. Extracts technical metadata using ffprobe and optionally detects objects using YOLOv8.
+**Organize, tag, and manage your video projects with AI-powered metadata extraction.**
 
-## Features
+KDO Video Tagger is a self-hosted web application that automatically extracts technical metadata from your videos and adds intelligent tagging powered by AI object detection.
 
-- **Web UI** - Modern React interface for browsing, scanning, and managing videos
-- **Metadata Extraction** - Resolution, duration, FPS, codec, bitrate, camera type, date
-- **Object Detection** - Optional YOLOv8 tagging (toggleable for performance)
-- **Folder Browsing** - Navigate video folders directly from the UI
-- **Progress Tracking** - Real-time scan progress with cancel support
-- **Export** - Download results as CSV or Excel files
-- **User Authentication** - Secure login for multi-user environments
-- **NAS & Docker Desktop** - Works on UGREEN NAS or local PC/Mac
+---
+
+## Why KDO Video Tagger?
+
+### Save Hours of Manual Work
+Stop manually typing metadata for every clip. Scan folders with thousands of videos in minutes and get comprehensive information automatically.
+
+### AI-Powered Object Detection
+Enable YOLO-based object detection to automatically identify what's in your footage - people, vehicles, animals, equipment, and more.
+
+### Perfect for Video Editors
+Export clean CSV or Excel spreadsheets ready for Premiere Pro, DaVinci Resolve, or Final Cut Pro workflows.
+
+### Works Where You Work
+- **NAS** - Run on your UGREEN NAS or any Docker-enabled NAS
+- **Local** - Works on Mac, Windows, or Linux
+- **Private** - Self-hosted, your videos never leave your network
+
+---
+
+## Key Features
+
+| Feature | Description |
+|----------|-------------|
+| **Automatic Metadata** | Resolution, duration, FPS, codec, bitrate, camera model |
+| **AI Object Detection** | Identify people, objects, and scenes in your footage |
+| **Scene Detection** | Automatically find shot boundaries and scene changes |
+| **Color Analysis** | Extract dominant color palettes from videos |
+| **GPS Location** | Read GPS coordinates from drone and action camera footage |
+| **Star Ratings** | Rate your best clips |
+| **Collections & Projects** | Organize videos your way |
+| **Duplicate Detection** | Find similar or duplicate videos |
+| **Export** | CSV, Excel, EDL (for Premiere/DaVinci), PDF shot lists |
+
+---
 
 ## Quick Start
-
-### NAS Installation
-
-See [docs/INSTALLATION.md](docs/INSTALLATION.md#option-1-ugreen-nas-recommended-for-centralized-storage)
-
-### Local PC/Mac
 
 ```bash
 docker pull ghcr.io/omrik/kdo-vtg:latest
@@ -31,47 +52,33 @@ docker run -d -p 8080:8000 \
 
 Access at `http://localhost:8080`
 
+---
+
+## Supported Cameras
+
+- DJI Drones (Mavic, Mini, Phantom, Inspire)
+- GoPro
+- iPhone
+- Insta360
+- Sony, Canon, Nikon
+- Any camera with MP4/MOV files
+
+---
+
 ## Documentation
 
-- [Installation Guide](docs/INSTALLATION.md) - NAS and PC/Mac setup
-- [User Stories](docs/user-stories.md) - Workflow documentation
-- [Development Guide](docs/DEVELOPMENT.md) - For contributors
-- [Feature Roadmap](docs/FEATURES.md) - Planned features
+- [Installation Guide](docs/INSTALLATION.md) - Detailed setup for NAS and local
+- [User Guide](docs/USAGE.md) - How to use all features
+- [Development](docs/DEVELOPMENT.md) - For contributors
 
-## Usage
-
-1. **Login** - Create account on first run
-2. **Browse** - Navigate to your video folder
-3. **Scan** - Extract metadata (enable YOLO for object detection)
-4. **Review** - Browse scanned videos with all metadata
-5. **Export** - Download CSV or Excel for your editing software
-
-## Configuration
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `JWT_SECRET` | Secret for JWT tokens | Required for production |
-| `DATABASE_URL` | SQLite database path | `sqlite:///./config/kdo-vtg.db` |
-| `TZ` | Timezone | `UTC` |
-
-### YOLO Model Options
-
-| Model | Speed | Accuracy | RAM Usage |
-|-------|-------|----------|-----------|
-| `yolov8n.pt` | Fastest | Good | ~1GB |
-| `yolov8s.pt` | Fast | Better | ~2GB |
-| `yolov8m.pt` | Medium | Great | ~4GB |
+---
 
 ## Tech Stack
 
-- **Backend**: Python, FastAPI, SQLAlchemy, SQLite
-- **Frontend**: React, TypeScript, Vite
-- **Metadata**: FFprobe (FFmpeg)
-- **Object Detection**: Ultralytics YOLOv8
-- **Deployment**: Docker
+Python • FastAPI • React • TypeScript • FFmpeg • YOLOv8 • Docker
+
+---
 
 ## License
 
-MIT License - See [LICENSE](LICENSE)
+[MIT](LICENSE)
