@@ -75,26 +75,24 @@ export interface User {
 }
 
 export interface Folder {
-  name: string
   path: string
+  name: string
   video_count: number
 }
 
-export interface ContentItem {
+export interface FolderContent {
   name: string
   path: string
   type: 'folder' | 'video'
   video_count?: number
-  size?: number
 }
 
 export interface Stats {
   total_videos: number
-  total_duration: number
-  total_size: number
-  total_duration_hours?: string
-  resolutions: string[]
-  cameras: string[]
+  total_duration_hours: number
+  resolutions: { resolution: string; count: number }[]
+  cameras: { camera: string; count: number }[]
+  top_tags: [string, number][]
 }
 
 export interface DuplicateInfo {
@@ -108,7 +106,24 @@ export interface DuplicateInfo {
 
 export interface ScanJob {
   id: number
+  folder_path: string
   status: string
   total_files: number
   processed_files: number
+  yolo_enabled: boolean
+  sample_interval: number
+  started_at: string | null
+  completed_at: string | null
+  error_message: string | null
+  progress: number
 }
+
+export interface ContentItem {
+  name: string
+  path: string
+  type: 'folder' | 'video'
+  video_count?: number
+  size?: number
+}
+
+export type Tab = 'folders' | 'scan' | 'results' | 'collections' | 'projects' | 'duplicates' | 'settings'
