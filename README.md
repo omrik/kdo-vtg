@@ -31,6 +31,10 @@ Export clean CSV or Excel spreadsheets ready for Premiere Pro, DaVinci Resolve, 
 
 ---
 
+<img src="docs/screenshots/modal.png" alt="Video Modal" width="800">
+
+---
+
 ## Key Features
 
 | Feature | Description |
