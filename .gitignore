@@ -9,6 +9,7 @@ hotfix-001
 pm-001
 kdo-vtg
 *.log
+.command_log.md
 __pycache__
 *.pyc
 node_modules
@@ -21,3 +22,4 @@ venv
 *.db-shm
 config/*.db
 .DS_Store
+config/thumbnails/

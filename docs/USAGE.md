@@ -62,16 +62,22 @@ docker run -d -p 8080:8000 \
 2. Navigate through your media folders
 3. Select a folder to view its contents
 
+![Folder Browser](screenshots/folders.png)
+
 ### Scanning Videos
 
 1. Navigate to a folder in the Folders tab
 2. Click **Scan This Folder**
-3. Configure scan options:
-   - **Enable Object Detection (YOLO)**: Detect objects in videos
-   - **Enable Scene Detection**: Find shot boundaries
-   - **Enable Shot Type Analysis**: Classify shot types (requires YOLO)
-   - **Enable Color Palette Extraction**: Extract dominant colors
-   - **Sample Interval**: Seconds between YOLO samples (default: 10)
+3. Configure scan options (shown in 2-column grid):
+   - **Object Detection**: Detect objects in video frames
+   - **Scene Detection**: Detect scene/shot boundaries
+   - **Shot Type Analysis**: Classify shots as WS/MS/CU
+   - **Color Palette**: Extract dominant colors
+   - **Create by Tag**: Auto-create collections after scan
+4. Set **Sample Interval** (seconds between samples)
+5. Click **Start Scan**
+
+![Scan Settings](screenshots/scan-settings.png)
 
 ### Viewing Results
 
@@ -82,6 +88,8 @@ docker run -d -p 8080:8000 \
    - Camera type
    - Min/Max duration
    - Tags
+
+![Video Results Grid](screenshots/results-grid.png)
 
 ### Video Details
 
@@ -101,10 +109,14 @@ Click on any video to open the details modal showing:
 - Auto-create collections by tag
 - Add/remove videos from collections
 
+![Collections](screenshots/collections.png)
+
 #### Projects
 - Create projects for editing workflows
 - Add videos to projects
 - Track project status
+
+![Projects](screenshots/projects.png)
 
 ### Batch Operations
 
