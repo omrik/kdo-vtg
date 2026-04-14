@@ -1,8 +1,15 @@
 # KDO Video Tagger
 
+<img src="docs/screenshots/black-logo-g.png" alt="KDO Video Tagger" width="300">
+
 **Organize, tag, and manage your video projects with AI-powered metadata extraction.**
 
 KDO Video Tagger is a self-hosted web application that automatically extracts technical metadata from your videos and adds intelligent tagging powered by AI object detection.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python Version](https://img.shields.io/badge/python-3.12-blue)](https://www.python.org/downloads/)
+[![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
+[![GitHub Release](https://img.shields.io/github/v/release/omrik/kdo-vtg)](https://github.com/omrik/kdo-vtg/releases)
 
 ---
 
@@ -70,6 +77,14 @@ Access at `http://localhost:8080`
 - [Installation Guide](docs/INSTALLATION.md) - Detailed setup for NAS and local
 - [User Guide](docs/USAGE.md) - How to use all features
 - [Development](docs/DEVELOPMENT.md) - For contributors
+
+---
+
+## Support This Project
+
+If KDO Video Tagger saves you time, consider buying me a coffee:
+
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/omrik)
 
 ---
 
