@@ -29,6 +29,7 @@ import {
 import { VideoModal } from './components/VideoModal'
 import { VideoListView } from './components/VideoListView'
 import type { User, Folder, ContentItem, VideoItem, Collection, Project, DuplicateInfo, ScanJob, Stats, Tab } from './types'
+import Logo from './assets/logo.png'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
@@ -917,8 +918,7 @@ function App() {
       )}
       <header className="header">
         <h1>
-          <Video size={28} />
-          KDO Video Tagger
+          <img src={Logo} alt="KDO" style={{ height: '48px', width: 'auto' }} />
         </h1>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           {user && (
@@ -981,25 +981,32 @@ function App() {
                   <p>No media folders found. Mount your video folders to /media</p>
                 </div>
               ) : (
-                <div className="folder-grid">
-                  {folders.map((folder) => (
-                    <div
-                      key={folder.path}
-                      className={`folder-card ${selectedFolder === folder.path ? 'selected' : ''}`}
-                      onClick={() => {
-                        setSelectedFolder(folder.path)
-                        fetchFolderContents(folder.path)
-                      }}
-                    >
-                      <div className="folder-name">
-                        <FolderOpen size={20} />
-                        {folder.name}
-                      </div>
-                      <div className="folder-info">
-                        {folder.video_count} videos
-                      </div>
-                    </div>
-                  ))}
+                <div className="table-container">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '40px' }}></th>
+                        <th>Name</th>
+                        <th style={{ width: '120px' }}>Videos</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {folders.map((folder) => (
+                        <tr
+                          key={folder.path}
+                          className={selectedFolder === folder.path ? 'selected' : ''}
+                          onClick={() => {
+                            setSelectedFolder(folder.path)
+                            fetchFolderContents(folder.path)
+                          }}
+                        >
+                          <td><FolderOpen size={20} /></td>
+                          <td style={{ wordBreak: 'break-word' }}>{folder.name}</td>
+                          <td>{folder.video_count}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </div>
@@ -1049,29 +1056,36 @@ function App() {
                     <p>No videos in this folder</p>
                   </div>
                 ) : (
-                  <div className="folder-grid">
-                    {contents.map((item) => (
-                      <div
-                        key={item.path}
-                        className={`folder-card ${selectedFolder === item.path ? 'selected' : ''}`}
-                        onClick={() => {
-                          if (item.type === 'folder') {
-                            setSelectedFolder(item.path)
-                            fetchFolderContents(item.path)
-                          } else {
-                            setSelectedFolder(item.path)
-                          }
-                        }}
-                      >
-                        <div className="folder-name">
-                          <FolderOpen size={20} />
-                          {item.name}
-                        </div>
-                        <div className="folder-info">
-                          {item.video_count || 0} videos
-                        </div>
-                      </div>
-                    ))}
+                  <div className="table-container">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th style={{ width: '40px' }}></th>
+                          <th>Name</th>
+                          <th style={{ width: '100px' }}>Type</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {contents.map((item) => (
+                          <tr
+                            key={item.path}
+                            className={selectedFolder === item.path ? 'selected' : ''}
+                            onClick={() => {
+                              if (item.type === 'folder') {
+                                setSelectedFolder(item.path)
+                                fetchFolderContents(item.path)
+                              } else {
+                                setSelectedFolder(item.path)
+                              }
+                            }}
+                          >
+                            <td>{item.type === 'folder' ? <FolderOpen size={20} /> : <FileVideo size={20} />}</td>
+                            <td style={{ wordBreak: 'break-word' }}>{item.name}</td>
+                            <td>{item.type === 'folder' ? 'Folder' : 'Video'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
               </div>
@@ -1900,8 +1914,8 @@ function App() {
               <div className="form-group" style={{ gridColumn: '1 / -1', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
                 <label>About</label>
                 <div style={{ padding: '0.75rem', background: 'var(--bg-tertiary)', borderRadius: '6px', textAlign: 'center' }}>
-                  <div style={{ fontSize: '1.5rem', marginBottom: '0.25rem' }}>
-                    <Video size={32} />
+                  <div style={{ marginBottom: '0.25rem' }}>
+<img src={Logo} alt="KDO" style={{ height: '96px', width: 'auto' }} />
                   </div>
                   <div style={{ fontWeight: 600, fontSize: '1.1rem' }}>KDO Video Tagger</div>
                   <div style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '0.5rem' }}>Version: {appVersion}</div>

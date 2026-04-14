@@ -198,6 +198,37 @@ class VideoScanner:
         except:
             return None
 
+    def extract_metadata_exiftool(self, filepath: str) -> dict:
+        """Extract extended metadata using exiftool."""
+        import subprocess
+        
+        metadata = {}
+        try:
+            result = subprocess.run(
+                ["exiftool", "-json", filepath],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            if result.returncode == 0 and result.stdout:
+                data = json.loads(result.stdout)
+                if data:
+                    info = data[0]
+                    metadata = {
+                        "encoder": info.get("Encoder", ""),
+                        "camera_model": info.get("Model", info.get("CameraModel", "")),
+                        "create_date": info.get("CreateDate", info.get("DateTimeOriginal", "")),
+                        "rotation": info.get("Rotation", 0),
+                        "avg_bitrate": info.get("AvgBitrate", ""),
+                        "megapixels": info.get("Megapixels", ""),
+                        "color_primaries": info.get("ColorPrimaries", ""),
+                        "transfer_chars": info.get("TransferCharacteristics", ""),
+                    }
+                    return metadata
+        except Exception as e:
+            print(f"exiftool error for {filepath}: {e}")
+        return metadata
+
     def extract_thumbnail(self, filepath: str, duration: float) -> Optional[str]:
         """Extract thumbnail at 10% of video duration."""
         try:
@@ -449,8 +480,13 @@ class VideoScanner:
         filename = os.path.basename(filepath)
         
         metadata = self.extract_metadata_ffprobe(filepath)
-        camera_type = self.extract_camera_type(filepath, filename)
-        date_created = self.extract_date_from_filename(filename)
+        exiftool_data = self.extract_metadata_exiftool(filepath)
+        
+        metadata.update(exiftool_data)
+        
+        camera_type = exiftool_data.get("camera_model") or self.extract_camera_type(filepath, filename)
+        date_created = self.extract_date_from_filename(filename) or exiftool_data.get("create_date")
+        
         tags = self.detect_objects_yolo(filepath)
         scenes = self.detect_scenes(filepath) if self.scene_detection_enabled else None
         shot_types = self.detect_shot_types(filepath) if self.shot_type_enabled else None
@@ -472,6 +508,7 @@ class VideoScanner:
             existing.bitrate = metadata.get("bitrate")
             existing.file_size = metadata.get("file_size")
             existing.camera_type = camera_type
+            existing.color_profile = metadata.get("color_primaries")
             existing.date_created = date_created
             existing.tags = list(tags) if tags else existing.tags
             existing.thumbnail = thumbnail if thumbnail else existing.thumbnail
@@ -496,6 +533,7 @@ class VideoScanner:
                 bitrate=metadata.get("bitrate"),
                 file_size=metadata.get("file_size"),
                 camera_type=camera_type,
+                color_profile=metadata.get("color_primaries"),
                 date_created=date_created,
                 tags=list(tags) if tags else [],
                 thumbnail=thumbnail,

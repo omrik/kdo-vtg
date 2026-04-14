@@ -23,6 +23,7 @@ def videos_to_csv(videos: list[Video]) -> str:
         "Codec",
         "Bitrate",
         "Camera Type",
+        "Color Profile",
         "Date Created",
         "File Size (MB)",
         "Tags",
@@ -52,6 +53,7 @@ def videos_to_csv(videos: list[Video]) -> str:
             video.codec or "",
             video.bitrate or "",
             video.camera_type or "",
+            video.color_profile or "",
             video.date_created.strftime("%Y-%m-%d %H:%M:%S") if video.date_created else "",
             f"{video.file_size / (1024*1024):.2f}" if video.file_size else "",
             ", ".join(video.tags) if video.tags else "",
@@ -88,6 +90,7 @@ def videos_to_excel(videos: list[Video]) -> bytes:
             "Codec",
             "Bitrate",
             "Camera Type",
+            "Color Profile",
             "Date Created",
             "File Size (MB)",
             "Tags",
@@ -125,16 +128,17 @@ def videos_to_excel(videos: list[Video]) -> bytes:
             ws.cell(row=row_idx, column=8, value=video.codec or "")
             ws.cell(row=row_idx, column=9, value=video.bitrate or "")
             ws.cell(row=row_idx, column=10, value=video.camera_type or "")
-            ws.cell(row=row_idx, column=11, value=video.date_created.strftime("%Y-%m-%d %H:%M:%S") if video.date_created else "")
-            ws.cell(row=row_idx, column=12, value=round(video.file_size / (1024*1024), 2) if video.file_size else "")
-            ws.cell(row=row_idx, column=13, value=", ".join(video.tags) if video.tags else "")
-            ws.cell(row=row_idx, column=14, value=video.rating or "")
-            ws.cell(row=row_idx, column=15, value=dominant_shot)
-            ws.cell(row=row_idx, column=16, value=gps_lat)
-            ws.cell(row=row_idx, column=17, value=gps_lon)
-            ws.cell(row=row_idx, column=18, value=scene_count)
-            ws.cell(row=row_idx, column=19, value="Yes" if video.yolo_enabled else "No")
-            ws.cell(row=row_idx, column=20, value=video.created_at.strftime("%Y-%m-%d %H:%M:%S") if video.created_at else "")
+            ws.cell(row=row_idx, column=11, value=video.color_profile or "")
+            ws.cell(row=row_idx, column=12, value=video.date_created.strftime("%Y-%m-%d %H:%M:%S") if video.date_created else "")
+            ws.cell(row=row_idx, column=13, value=round(video.file_size / (1024*1024), 2) if video.file_size else "")
+            ws.cell(row=row_idx, column=14, value=", ".join(video.tags) if video.tags else "")
+            ws.cell(row=row_idx, column=15, value=video.rating or "")
+            ws.cell(row=row_idx, column=16, value=dominant_shot)
+            ws.cell(row=row_idx, column=17, value=gps_lat)
+            ws.cell(row=row_idx, column=18, value=gps_lon)
+            ws.cell(row=row_idx, column=19, value=scene_count)
+            ws.cell(row=row_idx, column=20, value="Yes" if video.yolo_enabled else "No")
+            ws.cell(row=row_idx, column=21, value=video.created_at.strftime("%Y-%m-%d %H:%M:%S") if video.created_at else "")
         
         for column in ws.columns:
             max_length = 0

@@ -175,6 +175,7 @@ class VideoResponse(BaseModel):
     codec: Optional[str]
     bitrate: Optional[str]
     camera_type: Optional[str]
+    color_profile: Optional[str]
     date_created: Optional[str]
     file_size: Optional[int]
     tags: Optional[list]
@@ -186,6 +187,7 @@ class VideoResponse(BaseModel):
     yolo_enabled: bool
     scene_detection_enabled: bool
     created_at: str
+    thumbnail: Optional[str]
 
     class Config:
         from_attributes = True

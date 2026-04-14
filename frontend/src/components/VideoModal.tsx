@@ -59,6 +59,13 @@ export function VideoModal({
           <InfoBlock label="Camera" value={video.camera_type || '-'} />
           <InfoBlock label="FPS" value={video.fps ? video.fps.toFixed(1) : '-'} />
         </div>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginBottom: '1rem' }}>
+          <InfoBlock label="Bitrate" value={video.bitrate || '-'} />
+          <InfoBlock label="Color" value={video.color_profile || '-'} />
+          <InfoBlock label="Codec" value={video.codec || '-'} />
+          <InfoBlock label="Size" value={video.file_size ? `${(video.file_size / 1024 / 1024).toFixed(1)} MB` : '-'} />
+        </div>
 
         <div className="form-group">
           <label style={{ fontSize: '0.875rem', marginBottom: '0.5rem' }}>Rating</label>

@@ -45,6 +45,7 @@ class Video(Base):
     codec = Column(String, nullable=True)
     bitrate = Column(String, nullable=True)
     camera_type = Column(String, nullable=True)
+    color_profile = Column(String, nullable=True)
     date_created = Column(DateTime, nullable=True)
     file_size = Column(Integer, nullable=True)
     tags = Column(JSON, nullable=True)
@@ -161,6 +162,7 @@ def migrate_db():
             ('color_palette', 'TEXT'),
             ('gps_data', 'TEXT'),
             ('rating', 'INTEGER'),
+            ('color_profile', 'TEXT'),
         ]
         
         for col_name, col_type in migrations:

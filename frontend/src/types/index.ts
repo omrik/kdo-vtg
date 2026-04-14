@@ -8,7 +8,9 @@ export interface VideoItem {
   duration: number | null
   fps: number | null
   codec: string | null
+  bitrate: string | null
   camera_type: string | null
+  color_profile: string | null
   date_created: string | null
   file_size: number | null
   tags: string[] | null
