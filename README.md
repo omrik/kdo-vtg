@@ -1,6 +1,6 @@
 # KDO Video Tagger
 
-<img src="docs/screenshots/black-logo-g.png" alt="KDO Video Tagger" width="300">
+<img src="frontend/src/assets/logo.png" alt="KDO Video Tagger" width="300">
 
 **Organize, tag, and manage your video projects with AI-powered metadata extraction.**
 
