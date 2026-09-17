@@ -2,6 +2,13 @@
 
 # KDO Video Tagger - Build and Test Script
 # Usage: ./build-and-test.sh [--skip-tests]
+#
+# Environment overrides:
+#   IMAGE_NAME      Docker image tag        (default: kdo-vtg:stage)
+#   CONTAINER_NAME  Container name          (default: kdo-vtg-test)
+#   HOST_PORT       Host port to publish    (default: 8080)
+#   MEDIA_PATH      Host media path to mount(default: ~/Movies)
+#   CONFIG_VOLUME   Docker volume for config(default: kdo-vtg-config)
 
 set -e
 
@@ -11,8 +18,12 @@ GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-CONTAINER_NAME="${CONTAINER_NAME:-interesting_panini}"
 IMAGE_NAME="${IMAGE_NAME:-kdo-vtg:stage}"
+CONTAINER_NAME="${CONTAINER_NAME:-kdo-vtg-test}"
+HOST_PORT="${HOST_PORT:-8080}"
+MEDIA_PATH="${MEDIA_PATH:-$HOME/Movies}"
+CONFIG_VOLUME="${CONFIG_VOLUME:-kdo-vtg-config}"
+BASE_URL="http://localhost:${HOST_PORT}"
 
 log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
 log_success() { echo -e "${GREEN}[OK]${NC} $1"; }
@@ -35,10 +46,10 @@ docker rm "$CONTAINER_NAME" 2>/dev/null || true
 log_success "Old container cleaned up"
 
 # Step 3: Start new container
-log_info "Step 3: Starting new container..."
-docker run -d -p 8080:8000 \
-    -v ~/Movies:/media:ro \
-    -v kdo-vtg-config:/app/config \
+log_info "Step 3: Starting new container on port ${HOST_PORT}..."
+docker run -d -p "${HOST_PORT}:8000" \
+    -v "${MEDIA_PATH}:/media:ro" \
+    -v "${CONFIG_VOLUME}:/app/config" \
     --name "$CONTAINER_NAME" \
     "$IMAGE_NAME"
 log_success "Container started"
@@ -46,7 +57,7 @@ log_success "Container started"
 # Step 4: Wait for app to be ready
 log_info "Step 4: Waiting for app to be ready..."
 for i in {1..15}; do
-    if curl -s http://localhost:8080/api/health 2>/dev/null | grep -q "healthy"; then
+    if curl -s "${BASE_URL}/api/health" 2>/dev/null | grep -q "healthy"; then
         log_success "App is ready"
         break
     fi
@@ -61,10 +72,13 @@ done
 if [ "$1" != "--skip-tests" ]; then
     log_info "Step 5: Running tests..."
     echo ""
-    ./test.sh --all
+
+    set +e
+    CONTAINER_NAME="$CONTAINER_NAME" BASE_URL="$BASE_URL" ./scripts/test.sh
     TEST_EXIT=$?
+    set -e
+
     echo ""
-    
     if [ $TEST_EXIT -eq 0 ]; then
         log_success "All tests passed!"
     else
@@ -79,5 +93,5 @@ echo ""
 echo "========================================"
 echo "  Build & Test Complete"
 echo "========================================"
-echo "  App: http://localhost:8080"
+echo "  App: ${BASE_URL}"
 echo "========================================"

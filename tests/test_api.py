@@ -4,8 +4,8 @@ KDO Video Tagger - API Tests
 Run against local Docker container:
     docker build -t kdo-vtg:stage .
     docker run -d -p 8080:8000 -v ~/Movies:/media:ro -v kdo-vtg-test:/app/config --name kdo-vtg-test kdo-vtg:stage
-    
-Then run tests:
+
+Then run tests (BASE_URL/SCAN_TEST_PATH can be overridden via env):
     pytest tests/ -v
 """
 
@@ -16,6 +16,7 @@ from httpx import Client
 
 
 BASE_URL = os.environ.get("BASE_URL", "http://localhost:8080")
+SCAN_TEST_PATH = os.environ.get("SCAN_TEST_PATH", "/media/Scan")
 
 
 @pytest.fixture(scope="module")
@@ -34,6 +35,16 @@ def auth(client):
     assert response.status_code == 200
     token = response.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(scope="module")
+def a_video(client, auth):
+    """Return the first video in the test database, or skip if there are none."""
+    response = client.get("/api/videos", headers=auth)
+    videos = response.json().get("videos", [])
+    if not videos:
+        pytest.skip("No videos in test database")
+    return videos[0]
 
 
 class TestHealth:
@@ -97,7 +108,7 @@ class TestScanning:
     def test_start_scan(self, client, auth):
         response = client.post(
             "/api/scan",
-            json={"folder_path": "/media/Scan", "yolo_enabled": False},
+            json={"folder_path": SCAN_TEST_PATH, "yolo_enabled": False},
             headers=auth
         )
         assert response.status_code == 200
@@ -127,9 +138,9 @@ class TestVideos:
         response = client.get("/api/videos/1/tags")
         assert response.status_code == 401
 
-    def test_add_video_tag(self, client, auth):
+    def test_add_video_tag(self, client, auth, a_video):
         response = client.post(
-            "/api/videos/1/tags",
+            f"/api/videos/{a_video['id']}/tags",
             json={"tag": "test-tag"},
             headers=auth
         )
@@ -179,20 +190,12 @@ class TestProjects:
 
 
 class TestChapters:
-    @pytest.fixture(scope="class")
-    def video_id(self, client, auth):
-        response = client.get("/api/videos", headers=auth)
-        videos = response.json().get("videos", [])
-        if not videos:
-            pytest.skip("No videos in test database")
-        return videos[0]["id"]
-
     def test_generate_chapters_requires_auth(self, client):
         response = client.post("/api/videos/1/chapters")
         assert response.status_code == 401
 
-    def test_generate_chapters_without_key(self, client, auth, video_id):
-        response = client.post(f"/api/videos/{video_id}/chapters", json={}, headers=auth)
+    def test_generate_chapters_without_key(self, client, auth, a_video):
+        response = client.post(f"/api/videos/{a_video['id']}/chapters", json={}, headers=auth)
         assert response.status_code == 503
         assert "GEMINI_API_KEY" in response.json()["detail"]
 
@@ -200,11 +203,11 @@ class TestChapters:
         response = client.get("/api/videos/1/transcript")
         assert response.status_code == 401
 
-    def test_get_transcript(self, client, auth, video_id):
-        response = client.get(f"/api/videos/{video_id}/transcript", headers=auth)
+    def test_get_transcript(self, client, auth, a_video):
+        response = client.get(f"/api/videos/{a_video['id']}/transcript", headers=auth)
         assert response.status_code == 200
         assert "transcript" in response.json()
 
-    def test_get_chapters_not_generated(self, client, auth, video_id):
-        response = client.get(f"/api/videos/{video_id}/chapters", headers=auth)
+    def test_get_chapters_not_generated(self, client, auth, a_video):
+        response = client.get(f"/api/videos/{a_video['id']}/chapters", headers=auth)
         assert response.status_code in (200, 404)
