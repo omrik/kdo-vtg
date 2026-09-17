@@ -109,6 +109,30 @@ export const api = {
     duplicates: async (token: string | null) => {
       const res = await fetch(`${API_BASE}/api/videos/duplicates`, { headers: getHeaders(token) })
       return res.json()
+    },
+    getTranscript: async (id: number, token: string | null) => {
+      const res = await fetch(`${API_BASE}/api/videos/${id}/transcript`, { headers: getHeaders(token) })
+      return res.json()
+    },
+    transcribe: async (id: number, token: string | null, whisperModel = 'base') => {
+      const res = await fetch(`${API_BASE}/api/videos/${id}/transcribe`, {
+        method: 'POST',
+        headers: getHeaders(token),
+        body: JSON.stringify({ whisper_model: whisperModel })
+      })
+      return res.json()
+    },
+    getChapters: async (id: number, token: string | null) => {
+      const res = await fetch(`${API_BASE}/api/videos/${id}/chapters`, { headers: getHeaders(token) })
+      return res.json()
+    },
+    generateChapters: async (id: number, token: string | null, data: { project_id?: number; model?: string; extra_rules?: string } = {}) => {
+      const res = await fetch(`${API_BASE}/api/videos/${id}/chapters`, {
+        method: 'POST',
+        headers: getHeaders(token),
+        body: JSON.stringify(data)
+      })
+      return res.json()
     }
   },
 

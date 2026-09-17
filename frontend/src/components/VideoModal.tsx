@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { X, Star, MapPin } from 'lucide-react'
-import type { VideoItem } from '../types'
+import { X, Star, MapPin, Sparkles, Loader } from 'lucide-react'
+import type { VideoItem, Project } from '../types'
+import { api as apiClient, API_BASE } from '../api'
 
 interface VideoModalProps {
   video: VideoItem
@@ -9,8 +10,8 @@ interface VideoModalProps {
   onAddTag: (videoId: number, tag: string) => void
   onRemoveTag: (videoId: number, tag: string) => void
   allTags: string[]
+  projects: Project[]
   formatDuration: (seconds: number | null) => string
-  api: { API_BASE: string }
   token?: string | null
 }
 
@@ -21,10 +22,57 @@ export function VideoModal({
   onAddTag, 
   onRemoveTag, 
   allTags,
+  projects,
   formatDuration,
-  api
+  token
 }: VideoModalProps) {
-  const API_BASE = api.API_BASE
+  const [chapters, setChapters] = useState<VideoItem['chapters']>(video.chapters)
+  const [transcript, setTranscript] = useState<VideoItem['transcript']>(video.transcript)
+  const [chapterLoading, setChapterLoading] = useState(false)
+  const [transcribeLoading, setTranscribeLoading] = useState(false)
+  const [showTranscript, setShowTranscript] = useState(false)
+  const [chapterError, setChapterError] = useState<string | null>(null)
+  const [selectedProjectId, setSelectedProjectId] = useState<number | undefined>(projects[0]?.id)
+
+  const generateChapters = async () => {
+    setChapterLoading(true)
+    setChapterError(null)
+    try {
+      const data = await apiClient.videos.generateChapters(video.id, token ?? null, { project_id: selectedProjectId })
+      if (data.detail) {
+        setChapterError(data.detail)
+      } else {
+        setChapters(data.chapters)
+      }
+    } catch (err) {
+      setChapterError('Failed to generate chapters')
+    } finally {
+      setChapterLoading(false)
+    }
+  }
+
+  const transcribe = async () => {
+    setTranscribeLoading(true)
+    setChapterError(null)
+    try {
+      const data = await apiClient.videos.transcribe(video.id, token ?? null)
+      if (data.detail) {
+        setChapterError(data.detail)
+      } else {
+        setTranscript(data.transcript)
+      }
+    } catch (err) {
+      setChapterError('Failed to transcribe video')
+    } finally {
+      setTranscribeLoading(false)
+    }
+  }
+
+  const formatChapterTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60)
+    const s = seconds % 60
+    return `${m}:${s.toString().padStart(2, '0')}`
+  }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -176,6 +224,81 @@ export function VideoModal({
             </div>
           </div>
         )}
+
+        <hr style={{ margin: '1rem 0', borderColor: 'var(--border)' }} />
+
+        <div className="form-group">
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Sparkles size={14} /> YouTube Chapters
+          </label>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            {projects.length > 0 && (
+              <select
+                value={selectedProjectId ?? ''}
+                onChange={(e) => setSelectedProjectId(e.target.value ? Number(e.target.value) : undefined)}
+                style={{ padding: '0.4rem', borderRadius: '6px', border: '1px solid var(--border)', background: 'var(--bg-primary)', fontSize: '0.8rem' }}
+              >
+                <option value="">No project</option>
+                {projects.map(p => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            )}
+            <button
+              className="btn btn-primary"
+              onClick={generateChapters}
+              disabled={chapterLoading}
+              style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+            >
+              {chapterLoading ? <Loader size={14} className="spin" /> : <Sparkles size={14} />}
+              {chapterLoading ? 'Generating...' : 'Generate chapters'}
+            </button>
+            {transcript ? (
+              <button
+                className="btn btn-secondary"
+                onClick={() => setShowTranscript(s => !s)}
+                style={{ fontSize: '0.8rem' }}
+              >
+                {showTranscript ? 'Hide transcript' : 'Show transcript'}
+              </button>
+            ) : (
+              <button
+                className="btn btn-secondary"
+                onClick={transcribe}
+                disabled={transcribeLoading}
+                style={{ fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+              >
+                {transcribeLoading ? <Loader size={14} className="spin" /> : null}
+                {transcribeLoading ? 'Transcribing...' : 'Transcribe on device'}
+              </button>
+            )}
+          </div>
+          {chapterError && (
+            <div style={{ marginTop: '0.5rem', padding: '0.5rem', background: 'var(--bg-tertiary)', borderRadius: '6px', fontSize: '0.8rem', color: 'var(--danger, #ef4444)' }}>
+              {chapterError}
+            </div>
+          )}
+          {chapters && chapters.length > 0 && (
+            <div style={{ marginTop: '0.5rem', padding: '0.75rem', background: 'var(--bg-tertiary)', borderRadius: '6px', fontSize: '0.85rem' }}>
+              {chapters.map((chapter, i) => (
+                <div key={i} style={{ display: 'flex', gap: '0.75rem', padding: '0.25rem 0', borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ fontWeight: 600, color: 'var(--primary, #58a6ff)', fontVariantNumeric: 'tabular-nums' }}>{formatChapterTime(chapter.time)}</span>
+                  <span>{chapter.title}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {showTranscript && transcript && transcript.length > 0 && (
+            <div style={{ marginTop: '0.5rem', maxHeight: '200px', overflowY: 'auto', padding: '0.75rem', background: 'var(--bg-tertiary)', borderRadius: '6px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+              {transcript.map((seg, i) => (
+                <div key={i} style={{ marginBottom: '0.4rem' }}>
+                  <span style={{ fontVariantNumeric: 'tabular-nums', marginRight: '0.5rem' }}>{formatChapterTime(Math.floor(seg.start))}</span>
+                  {seg.text}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         <hr style={{ margin: '1rem 0', borderColor: 'var(--border)' }} />
 

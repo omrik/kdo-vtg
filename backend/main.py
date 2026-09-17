@@ -161,6 +161,12 @@ class ScanRequest(BaseModel):
     scene_detection_enabled: bool = False
     shot_type_enabled: bool = False
     color_palette_enabled: bool = False
+    transcribe_enabled: bool = False
+    whisper_model: str = "base"
+
+
+class TranscribeRequest(BaseModel):
+    whisper_model: str = "base"
 
 
 class VideoResponse(BaseModel):
@@ -183,6 +189,9 @@ class VideoResponse(BaseModel):
     shot_types: Optional[dict]
     color_palette: Optional[list]
     gps_data: Optional[dict]
+    transcript: Optional[list]
+    chapters: Optional[list]
+    transcribe_enabled: bool
     rating: Optional[int]
     yolo_enabled: bool
     scene_detection_enabled: bool
@@ -244,7 +253,7 @@ class ProjectResponse(BaseModel):
         from_attributes = True
 
 
-def scan_task(db_url: str, scan_id: int, folder_path: str, yolo_enabled: bool, sample_interval: int, model_name: str, scene_detection_enabled: bool = False, shot_type_enabled: bool = False, color_palette_enabled: bool = False):
+def scan_task(db_url: str, scan_id: int, folder_path: str, yolo_enabled: bool, sample_interval: int, model_name: str, scene_detection_enabled: bool = False, shot_type_enabled: bool = False, color_palette_enabled: bool = False, transcribe_enabled: bool = False, whisper_model: str = "base"):
     from backend.database import SessionLocal
     
     db = SessionLocal()
@@ -259,7 +268,9 @@ def scan_task(db_url: str, scan_id: int, folder_path: str, yolo_enabled: bool, s
                 model_name=model_name,
                 scene_detection_enabled=scene_detection_enabled,
                 shot_type_enabled=shot_type_enabled,
-                color_palette_enabled=color_palette_enabled
+                color_palette_enabled=color_palette_enabled,
+                transcribe_enabled=transcribe_enabled,
+                whisper_model=whisper_model
             )
             scanner.scan_folder(folder_path)
     finally:
@@ -367,6 +378,8 @@ def start_scan(
         request.scene_detection_enabled,
         request.shot_type_enabled,
         request.color_palette_enabled,
+        request.transcribe_enabled,
+        request.whisper_model,
     )
     
     return {
@@ -480,6 +493,9 @@ def get_videos(
                 "shot_types": v.shot_types,
                 "color_palette": v.color_palette,
                 "gps_data": v.gps_data,
+                "transcript": v.transcript,
+                "chapters": v.chapters,
+                "transcribe_enabled": v.transcribe_enabled,
                 "rating": v.rating,
                 "thumbnail": v.thumbnail,
                 "yolo_enabled": v.yolo_enabled,
@@ -520,6 +536,9 @@ def get_video(
         "shot_types": video.shot_types,
         "color_palette": video.color_palette,
         "gps_data": video.gps_data,
+        "transcript": video.transcript,
+        "chapters": video.chapters,
+        "transcribe_enabled": video.transcribe_enabled,
         "rating": video.rating,
         "thumbnail": video.thumbnail,
         "yolo_enabled": video.yolo_enabled,
@@ -738,6 +757,127 @@ def detect_video_scenes(
     db.refresh(video)
     
     return {"scenes": scenes, "scene_detection_enabled": True}
+
+
+class ChaptersRequest(BaseModel):
+    project_id: Optional[int] = None
+    model: Optional[str] = None
+    extra_rules: Optional[str] = None
+
+
+@app.get("/api/videos/{video_id}/transcript")
+def get_video_transcript(
+    video_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    return {"transcript": video.transcript or None}
+
+
+@app.post("/api/videos/{video_id}/transcribe")
+def transcribe_video_now(
+    video_id: int,
+    request: TranscribeRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    if not os.path.exists(video.filepath):
+        raise HTTPException(status_code=404, detail="Video file not found")
+
+    from backend.scanner import VideoScanner
+    scanner = VideoScanner(db=db, scan_job=None, transcribe_enabled=True, whisper_model=request.whisper_model)
+    transcript = scanner.transcribe_video(video.filepath)
+
+    if transcript is not None:
+        video.transcript = transcript
+        video.transcribe_enabled = True
+        db.commit()
+        db.refresh(video)
+        return {"transcript": transcript}
+    return JSONResponse(
+        status_code=502,
+        content={"detail": "Transcription failed (is faster-whisper installed?)"},
+    )
+
+
+@app.post("/api/videos/{video_id}/chapters")
+def generate_video_chapters(
+    video_id: int,
+    request: ChaptersRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    from backend.chapters import build_prompt, generate_chapters, GEMINI_DEFAULT_MODEL
+
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    if not os.environ.get("GEMINI_API_KEY"):
+        raise HTTPException(
+            status_code=503,
+            detail="GEMINI_API_KEY is not set. Set it in the container environment to enable chapter generation.",
+        )
+
+    series_context = None
+    project = None
+    if request.project_id:
+        project = db.query(Project).filter(Project.id == request.project_id).first()
+    if project is None:
+        project = db.query(Project).filter(Project.videos.any(id=video_id)).first()
+
+    if project:
+        siblings = sorted(project.videos, key=lambda v: v.created_at or datetime.datetime.min)
+        try:
+            idx = next(i for i, v in enumerate(siblings, start=1) if v.id == video_id)
+        except StopIteration:
+            idx = 0
+        series_context = (
+            f"Project: {project.name}\n"
+            f"Episode: {video.filename} ({idx} of {len(siblings)})\n"
+            f"Sibling episodes: {', '.join(v.filename for v in siblings if v.id != video_id)[:500]}"
+        )
+
+    prompt = build_prompt(
+        video,
+        video.transcript or [],
+        series_context=series_context,
+        extra_rules=request.extra_rules,
+    )
+
+    try:
+        chapters = generate_chapters(prompt, api_key=os.environ.get("GEMINI_API_KEY"), model=request.model or GEMINI_DEFAULT_MODEL)
+    except ValueError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+    video.chapters = chapters
+    db.commit()
+    db.refresh(video)
+
+    return {"chapters": chapters}
+
+
+@app.get("/api/videos/{video_id}/chapters")
+def get_video_chapters(
+    video_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    video = db.query(Video).filter(Video.id == video_id).first()
+    if not video:
+        raise HTTPException(status_code=404, detail="Video not found")
+
+    if not video.chapters:
+        raise HTTPException(status_code=404, detail="Chapters not generated yet")
+    return {"chapters": video.chapters}
 
 
 class RatingRequest(BaseModel):

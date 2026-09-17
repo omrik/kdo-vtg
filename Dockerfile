@@ -24,7 +24,8 @@ RUN pip install --no-cache-dir --break-system-packages \
     bcrypt==4.0.1 \
     openpyxl \
     ultralytics \
-    reportlab
+    reportlab \
+    faster-whisper
 
 COPY backend/ ./backend/
 COPY VERSION ./

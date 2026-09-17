@@ -23,7 +23,9 @@ class VideoScanner:
         scene_detection_enabled: bool = False,
         shot_type_enabled: bool = False,
         color_palette_enabled: bool = False,
-        gps_extraction_enabled: bool = True
+        gps_extraction_enabled: bool = True,
+        transcribe_enabled: bool = False,
+        whisper_model: str = "base"
     ):
         self.db = db
         self.scan_job = scan_job
@@ -34,6 +36,8 @@ class VideoScanner:
         self.shot_type_enabled = shot_type_enabled
         self.color_palette_enabled = color_palette_enabled
         self.gps_extraction_enabled = gps_extraction_enabled
+        self.transcribe_enabled = transcribe_enabled
+        self.whisper_model = whisper_model
         self.model = None
         self._yolo_initialized = False
 
@@ -476,6 +480,31 @@ class VideoScanner:
         cap.release()
         return scenes
 
+    def transcribe_video(self, filepath: str) -> list:
+        try:
+            probe = ffmpeg.probe(filepath)
+            has_audio = any(
+                stream.get("codec_type") == "audio"
+                for stream in probe.get("streams", [])
+            )
+            if not has_audio:
+                return []
+
+            from faster_whisper import WhisperModel
+            model = WhisperModel(self.whisper_model, device="cpu", compute_type="int8")
+            segments, _ = model.transcribe(filepath, language=None)
+            transcript = []
+            for segment in segments:
+                transcript.append({
+                    "start": float(segment.start),
+                    "end": float(segment.end),
+                    "text": segment.text.strip(),
+                })
+            return transcript
+        except Exception as e:
+            print(f"transcribe error for {filepath}: {e}")
+            return None
+
     def scan_video(self, filepath: str) -> Video:
         filename = os.path.basename(filepath)
         
@@ -492,6 +521,7 @@ class VideoScanner:
         shot_types = self.detect_shot_types(filepath) if self.shot_type_enabled else None
         color_palette = self.extract_color_palette(filepath) if self.color_palette_enabled else None
         gps_data = self.extract_gps_data(filepath) if self.gps_extraction_enabled else None
+        transcript = self.transcribe_video(filepath) if self.transcribe_enabled else None
         
         duration = metadata.get("duration", 0) or 0
         thumbnail = self.extract_thumbnail(filepath, duration) if duration > 0 else None
@@ -518,6 +548,8 @@ class VideoScanner:
             existing.shot_types = shot_types if shot_types else existing.shot_types
             existing.color_palette = color_palette if color_palette else existing.color_palette
             existing.gps_data = gps_data if gps_data else existing.gps_data
+            existing.transcript = transcript if transcript is not None else existing.transcript
+            existing.transcribe_enabled = self.transcribe_enabled
             existing.scan_id = self.scan_job.id
             video = existing
         else:
@@ -543,6 +575,8 @@ class VideoScanner:
                 shot_types=shot_types,
                 color_palette=color_palette,
                 gps_data=gps_data,
+                transcript=transcript,
+                transcribe_enabled=self.transcribe_enabled,
                 scan_id=self.scan_job.id,
             )
             self.db.add(video)

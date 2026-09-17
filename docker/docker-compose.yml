@@ -11,6 +11,7 @@ services:
       - TZ=Europe/Bucharest
       - PUID=1000
       - PGID=100
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
     restart: unless-stopped
 
 volumes:

@@ -18,11 +18,25 @@ export interface VideoItem {
   shot_types: ShotTypeInfo | null
   color_palette: ColorInfo[] | null
   gps_data: GpsInfo | null
+  transcript: TranscriptSegment[] | null
+  chapters: Chapter[] | null
+  transcribe_enabled: boolean
   rating: number | null
   yolo_enabled: boolean
   scene_detection_enabled: boolean
   created_at: string
   thumbnail: string | null
+}
+
+export interface TranscriptSegment {
+  start: number
+  end: number
+  text: string
+}
+
+export interface Chapter {
+  time: number
+  title: string
 }
 
 export interface Scene {

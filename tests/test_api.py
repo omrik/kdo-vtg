@@ -9,11 +9,13 @@ Then run tests:
     pytest tests/ -v
 """
 
+import os
+
 import pytest
 from httpx import Client
 
 
-BASE_URL = "http://localhost:8080"
+BASE_URL = os.environ.get("BASE_URL", "http://localhost:8080")
 
 
 @pytest.fixture(scope="module")
@@ -174,3 +176,35 @@ class TestProjects:
     def test_list_projects(self, client, auth):
         response = client.get("/api/projects", headers=auth)
         assert response.status_code == 200
+
+
+class TestChapters:
+    @pytest.fixture(scope="class")
+    def video_id(self, client, auth):
+        response = client.get("/api/videos", headers=auth)
+        videos = response.json().get("videos", [])
+        if not videos:
+            pytest.skip("No videos in test database")
+        return videos[0]["id"]
+
+    def test_generate_chapters_requires_auth(self, client):
+        response = client.post("/api/videos/1/chapters")
+        assert response.status_code == 401
+
+    def test_generate_chapters_without_key(self, client, auth, video_id):
+        response = client.post(f"/api/videos/{video_id}/chapters", json={}, headers=auth)
+        assert response.status_code == 503
+        assert "GEMINI_API_KEY" in response.json()["detail"]
+
+    def test_transcript_requires_auth(self, client):
+        response = client.get("/api/videos/1/transcript")
+        assert response.status_code == 401
+
+    def test_get_transcript(self, client, auth, video_id):
+        response = client.get(f"/api/videos/{video_id}/transcript", headers=auth)
+        assert response.status_code == 200
+        assert "transcript" in response.json()
+
+    def test_get_chapters_not_generated(self, client, auth, video_id):
+        response = client.get(f"/api/videos/{video_id}/chapters", headers=auth)
+        assert response.status_code in (200, 404)

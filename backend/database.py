@@ -56,6 +56,9 @@ class Video(Base):
     shot_types = Column(JSON, nullable=True)
     color_palette = Column(JSON, nullable=True)
     gps_data = Column(JSON, nullable=True)
+    transcript = Column(JSON, nullable=True)
+    transcribe_enabled = Column(Boolean, default=False)
+    chapters = Column(JSON, nullable=True)
     rating = Column(Integer, nullable=True)
     folder_id = Column(Integer, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -161,6 +164,9 @@ def migrate_db():
             ('shot_types', 'TEXT'),
             ('color_palette', 'TEXT'),
             ('gps_data', 'TEXT'),
+            ('transcript', 'TEXT'),
+            ('transcribe_enabled', 'BOOLEAN DEFAULT 0'),
+            ('chapters', 'TEXT'),
             ('rating', 'INTEGER'),
             ('color_profile', 'TEXT'),
         ]

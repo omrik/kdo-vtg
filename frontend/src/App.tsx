@@ -2053,8 +2053,8 @@ function App() {
           onAddTag={addTagToVideo}
           onRemoveTag={removeTagFromVideo}
           allTags={allTags}
+          projects={projects}
           formatDuration={formatDuration}
-          api={{ API_BASE }}
           token={token}
         />
       )}

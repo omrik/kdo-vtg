@@ -42,6 +42,8 @@ Export clean CSV or Excel spreadsheets ready for Premiere Pro, DaVinci Resolve, 
 | **Automatic Metadata** | Resolution, duration, FPS, codec, bitrate, camera model |
 | **AI Object Detection** | Identify people, objects, and scenes in your footage |
 | **Scene Detection** | Automatically find shot boundaries and scene changes |
+| **Transcription** | Local speech-to-text via faster-whisper (runs on-NAS, free) |
+| **YouTube Chapters** | AI-generated chapter plans from visual index + transcript (optional) |
 | **Color Analysis** | Extract dominant color palettes from videos |
 | **GPS Location** | Read GPS coordinates from drone and action camera footage |
 | **Star Ratings** | Rate your best clips |
@@ -62,6 +64,35 @@ docker run -d -p 8080:8000 \
 ```
 
 Access at `http://localhost:8080`
+
+---
+
+## YouTube Chapters (optional, AI-powered)
+
+Generate YouTube chapter plans per video (and consistently across a series) from the
+visual index kdo-vtg already computes (scene cuts, YOLO tags, shot types) plus a local
+Whisper transcript. Chapter planning is sent to Google **Gemini** — you need your own
+API key for this one feature only.
+
+- **Everything else works without a key.** Chapter generation simply returns a clean
+  `503` error until you set one.
+- Transcription runs locally on your NAS via [`faster-whisper`](https://github.com/SYSTRAN/faster-whisper) —
+  free, no API needed.
+- **Never commit your key.** Set it in the environment of the NAS deployment:
+
+```bash
+# in your .env or shell before running docker compose
+export GEMINI_API_KEY=your_key_here
+```
+
+```yaml
+# docker-compose.yml (passthrough is already configured)
+environment:
+  - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+```
+
+> Series consistency: when a video belongs to a **Project**, sibling episodes are passed
+> to Gemini as `SERIES_CONTEXT` so every episode's chapter titles match in style.
 
 ---
 
