@@ -16,6 +16,7 @@ node_modules
 build
 .venv
 venv
+.env
 *.db
 *.db-journal
 *.db-wal

@@ -1,9 +1,11 @@
 import json
 import os
+import re
+import time
 import urllib.error
 import urllib.request
 
-GEMINI_DEFAULT_MODEL = "gemini-2.5-flash"
+GEMINI_DEFAULT_MODEL = "gemini-3.6-flash"
 GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
 
@@ -159,21 +161,33 @@ def generate_chapters(prompt: str, api_key: str = None, model: str = GEMINI_DEFA
         },
     }
     url = GEMINI_ENDPOINT.format(model=model) + f"?key={key}"
-    request = urllib.request.Request(
-        url,
-        data=json.dumps(body).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
 
-    try:
-        with urllib.request.urlopen(request, timeout=120) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        detail = e.read().decode("utf-8", errors="replace")
-        raise ValueError(f"Gemini API error {e.code}: {detail}") from e
-    except urllib.error.URLError as e:
-        raise ValueError(f"Gemini API network error: {e.reason}") from e
+    last_error: Optional[Exception] = None
+    for attempt in range(3):
+        try:
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(body).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=120) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            break
+        except urllib.error.HTTPError as e:
+            last_error = e
+            if e.code not in (429, 503):
+                detail = e.read().decode("utf-8", errors="replace")
+                raise ValueError(f"Gemini API error {e.code}: {detail}") from e
+            wait = int(e.headers.get("Retry-After")) if e.headers.get("Retry-After", "").isdigit() else [8, 20, 40][attempt]
+            e.read()
+            print(f"Gemini API {e.code}, retry {attempt+1}/3 in {wait}s")
+            time.sleep(wait)
+        except urllib.error.URLError as e:
+            raise ValueError(f"Gemini API network error: {e.reason}") from e
+    else:
+        detail = last_error.read().decode("utf-8", errors="replace") if last_error else ""
+        raise ValueError(f"Gemini API error {last_error.code}: {detail}") from last_error
 
     try:
         text = payload["candidates"][0]["content"]["parts"][0]["text"]

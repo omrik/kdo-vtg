@@ -80,7 +80,12 @@ def get_version():
 
 @app.get("/api/health")
 def health_check():
-    return {"status": "healthy", "service": "kdo-vtg", "version": get_version()}
+    return {
+        "status": "healthy",
+        "service": "kdo-vtg",
+        "version": get_version(),
+        "gemini_configured": bool(os.environ.get("GEMINI_API_KEY")),
+    }
 
 
 @app.get("/api/version")

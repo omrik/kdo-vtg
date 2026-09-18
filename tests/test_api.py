@@ -194,7 +194,10 @@ class TestChapters:
         response = client.post("/api/videos/1/chapters")
         assert response.status_code == 401
 
-    def test_generate_chapters_without_key(self, client, auth, a_video):
+    def test_generate_chapters_key_gate(self, client, auth, a_video):
+        health = client.get("/api/health").json()
+        if health.get("gemini_configured"):
+            pytest.skip("GEMINI_API_KEY is set; 503-gate not exercisable")
         response = client.post(f"/api/videos/{a_video['id']}/chapters", json={}, headers=auth)
         assert response.status_code == 503
         assert "GEMINI_API_KEY" in response.json()["detail"]
