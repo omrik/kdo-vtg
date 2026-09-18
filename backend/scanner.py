@@ -202,6 +202,35 @@ class VideoScanner:
         except:
             return None
 
+    @staticmethod
+    def _parse_exiftool_datetime(value: str) -> Optional[datetime.datetime]:
+        """Parse exiftool date strings (e.g. '2025:09:18 19:39:04') into a datetime."""
+        if not value:
+            return None
+        if isinstance(value, datetime.datetime):
+            return value
+        value = str(value).strip()
+        for fmt in (
+            "%Y:%m:%d %H:%M:%S",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%dT%H:%M:%S",
+            "%Y:%m:%d",
+            "%Y-%m-%d",
+        ):
+            try:
+                return datetime.datetime.strptime(value, fmt)
+            except ValueError:
+                continue
+        match = re.match(
+            r"(\d{4})[:/-](\d{1,2})[:/-](\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?",
+            value,
+        )
+        if match:
+            _, _, _, hh, mm, ss = match.groups()
+            y, mo, d = (int(match.group(i)) for i in (1, 2, 3))
+            return datetime.datetime(y, mo, d, int(hh), int(mm), int(ss) if ss else 0)
+        return None
+
     def extract_metadata_exiftool(self, filepath: str) -> dict:
         """Extract extended metadata using exiftool."""
         import subprocess
@@ -218,10 +247,13 @@ class VideoScanner:
                 data = json.loads(result.stdout)
                 if data:
                     info = data[0]
+                    create_date = self._parse_exiftool_datetime(
+                        info.get("CreateDate", info.get("DateTimeOriginal", ""))
+                    )
                     metadata = {
                         "encoder": info.get("Encoder", ""),
                         "camera_model": info.get("Model", info.get("CameraModel", "")),
-                        "create_date": info.get("CreateDate", info.get("DateTimeOriginal", "")),
+                        "create_date": create_date,
                         "rotation": info.get("Rotation", 0),
                         "avg_bitrate": info.get("AvgBitrate", ""),
                         "megapixels": info.get("Megapixels", ""),
@@ -613,6 +645,7 @@ class VideoScanner:
                 self.scan_video(filepath)
             except Exception as e:
                 print(f"Error scanning {filepath}: {e}")
+                self.db.rollback()
                 self.scan_job.processed_files += 1
                 self.db.commit()
 
