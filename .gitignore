@@ -33,3 +33,4 @@ black-logo-sol-g.png
 ugreen/rootfs_amd64/images/
 ugreen/rootfs_arm64/images/
 ugreen/build/
+ugreen/build_dir/
