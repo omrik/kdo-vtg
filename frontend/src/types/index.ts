@@ -142,4 +142,21 @@ export interface ContentItem {
   size?: number
 }
 
+export interface AppSettings {
+  gemini_api_key_set: boolean
+  gemini_api_key_masked: string
+  gemini_api_key_source: 'none' | 'env' | 'db'
+  gemini_model: string
+  whisper_model: string
+  media_root: string
+  scan_defaults: {
+    yolo_enabled: boolean
+    scene_detection_enabled: boolean
+    shot_type_enabled: boolean
+    color_palette_enabled: boolean
+    sample_interval: number
+    after_scan: string
+  }
+}
+
 export type Tab = 'folders' | 'scan' | 'results' | 'collections' | 'projects' | 'duplicates' | 'settings'

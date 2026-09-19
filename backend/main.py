@@ -17,6 +17,12 @@ from backend.database import (
     init_db, get_db, Video, ScanJob, Folder, Settings, 
     User, Collection, Project, collection_videos, project_videos
 )
+from backend.settings import (
+    get_setting, get_setting_bool, set_setting, settings_payload,
+    KEY_GEMINI_API_KEY, KEY_GEMINI_MODEL, KEY_WHISPER_MODEL, KEY_MEDIA_ROOT,
+    KEY_SCAN_YOLO, KEY_SCAN_SCENE, KEY_SCAN_SHOT, KEY_SCAN_COLOR,
+    KEY_SCAN_SAMPLE_INTERVAL, KEY_SCAN_AFTER, DEFAULT_MEDIA_ROOT,
+)
 from backend.scanner import VideoScanner, cancel_scan
 from backend.export import videos_to_csv, videos_to_excel, get_latest_scan
 from backend.auth import (
@@ -79,12 +85,14 @@ def get_version():
 
 
 @app.get("/api/health")
-def health_check():
+def health_check(db: Session = Depends(get_db)):
     return {
         "status": "healthy",
         "service": "kdo-vtg",
         "version": get_version(),
-        "gemini_configured": bool(os.environ.get("GEMINI_API_KEY")),
+        "gemini_configured": bool(
+            get_setting(db, KEY_GEMINI_API_KEY) or os.environ.get("GEMINI_API_KEY")
+        ),
     }
 
 
@@ -172,6 +180,19 @@ class ScanRequest(BaseModel):
 
 class TranscribeRequest(BaseModel):
     whisper_model: str = "base"
+
+
+class SettingsUpdate(BaseModel):
+    gemini_api_key: Optional[str] = None
+    gemini_model: Optional[str] = None
+    whisper_model: Optional[str] = None
+    media_root: Optional[str] = None
+    yolo_enabled: Optional[bool] = None
+    scene_detection_enabled: Optional[bool] = None
+    shot_type_enabled: Optional[bool] = None
+    color_palette_enabled: Optional[bool] = None
+    sample_interval: Optional[int] = None
+    after_scan: Optional[str] = None
 
 
 class VideoResponse(BaseModel):
@@ -282,12 +303,51 @@ def scan_task(db_url: str, scan_id: int, folder_path: str, yolo_enabled: bool, s
         db.close()
 
 
+@app.get("/api/settings")
+def read_settings(
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    return settings_payload(db)
+
+
+@app.post("/api/settings")
+def update_settings(
+    request: SettingsUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    if request.gemini_api_key is not None:
+        set_setting(db, KEY_GEMINI_API_KEY, request.gemini_api_key)
+    if request.gemini_model is not None:
+        set_setting(db, KEY_GEMINI_MODEL, request.gemini_model)
+    if request.whisper_model is not None:
+        set_setting(db, KEY_WHISPER_MODEL, request.whisper_model)
+    if request.media_root is not None:
+        set_setting(db, KEY_MEDIA_ROOT, request.media_root)
+    if request.yolo_enabled is not None:
+        set_setting(db, KEY_SCAN_YOLO, "1" if request.yolo_enabled else "0")
+    if request.scene_detection_enabled is not None:
+        set_setting(db, KEY_SCAN_SCENE, "1" if request.scene_detection_enabled else "0")
+    if request.shot_type_enabled is not None:
+        set_setting(db, KEY_SCAN_SHOT, "1" if request.shot_type_enabled else "0")
+    if request.color_palette_enabled is not None:
+        set_setting(db, KEY_SCAN_COLOR, "1" if request.color_palette_enabled else "0")
+    if request.sample_interval is not None:
+        set_setting(db, KEY_SCAN_SAMPLE_INTERVAL, str(request.sample_interval))
+    if request.after_scan is not None:
+        set_setting(db, KEY_SCAN_AFTER, request.after_scan)
+
+    return settings_payload(db)
+
+
 @app.get("/api/folders")
 def list_folders(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
-    media_root: str = Query("/media", description="Root directory to scan")
+    media_root_arg: Optional[str] = Query(None, alias="media_root", description="Root directory to scan"),
 ):
+    media_root = media_root_arg or get_setting(db, KEY_MEDIA_ROOT, DEFAULT_MEDIA_ROOT)
     folders = []
     if os.path.exists(media_root):
         for item in os.listdir(media_root):
@@ -371,6 +431,8 @@ def start_scan(
     db.add(scan_job)
     db.commit()
     db.refresh(scan_job)
+
+    whisper_model = request.whisper_model or get_setting(db, KEY_WHISPER_MODEL, "base")
     
     background_tasks.add_task(
         scan_task,
@@ -384,7 +446,7 @@ def start_scan(
         request.shot_type_enabled,
         request.color_palette_enabled,
         request.transcribe_enabled,
-        request.whisper_model,
+        whisper_model,
     )
     
     return {
@@ -798,7 +860,8 @@ def transcribe_video_now(
         raise HTTPException(status_code=404, detail="Video file not found")
 
     from backend.scanner import VideoScanner
-    scanner = VideoScanner(db=db, scan_job=None, transcribe_enabled=True, whisper_model=request.whisper_model)
+    whisper_model = request.whisper_model or get_setting(db, KEY_WHISPER_MODEL, "base")
+    scanner = VideoScanner(db=db, scan_job=None, transcribe_enabled=True, whisper_model=whisper_model)
     transcript = scanner.transcribe_video(video.filepath)
 
     if transcript is not None:
@@ -826,10 +889,11 @@ def generate_video_chapters(
     if not video:
         raise HTTPException(status_code=404, detail="Video not found")
 
-    if not os.environ.get("GEMINI_API_KEY"):
+    gemini_api_key = get_setting(db, KEY_GEMINI_API_KEY) or os.environ.get("GEMINI_API_KEY")
+    if not gemini_api_key:
         raise HTTPException(
             status_code=503,
-            detail="GEMINI_API_KEY is not set. Set it in the container environment to enable chapter generation.",
+            detail="GEMINI_API_KEY is not set. Set it in Settings or in the container environment to enable chapter generation.",
         )
 
     series_context = None
@@ -859,7 +923,8 @@ def generate_video_chapters(
     )
 
     try:
-        chapters = generate_chapters(prompt, api_key=os.environ.get("GEMINI_API_KEY"), model=request.model or GEMINI_DEFAULT_MODEL)
+        model = request.model or get_setting(db, KEY_GEMINI_MODEL, "") or GEMINI_DEFAULT_MODEL
+        chapters = generate_chapters(prompt, api_key=gemini_api_key, model=model)
     except ValueError as e:
         raise HTTPException(status_code=502, detail=str(e))
 

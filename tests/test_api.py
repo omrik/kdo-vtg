@@ -189,6 +189,24 @@ class TestProjects:
         assert response.status_code == 200
 
 
+class TestSettings:
+    def test_settings_requires_auth(self, client):
+        response = client.get("/api/settings")
+        assert response.status_code == 401
+
+    def test_get_settings_payload(self, client, auth):
+        response = client.get("/api/settings", headers=auth)
+        assert response.status_code == 200
+        data = response.json()
+        assert "gemini_api_key_set" in data
+        assert "gemini_api_key_masked" in data
+        assert "AIza" not in data["gemini_api_key_masked"]
+        assert "gemini_model" in data
+        assert "whisper_model" in data
+        assert "media_root" in data
+        assert "scan_defaults" in data
+
+
 class TestChapters:
     def test_generate_chapters_requires_auth(self, client):
         response = client.post("/api/videos/1/chapters")

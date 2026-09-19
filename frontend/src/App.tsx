@@ -28,7 +28,7 @@ import {
 } from 'lucide-react'
 import { VideoModal } from './components/VideoModal'
 import { VideoListView } from './components/VideoListView'
-import type { User, Folder, ContentItem, VideoItem, Collection, Project, DuplicateInfo, ScanJob, Stats, Tab } from './types'
+import type { User, Folder, ContentItem, VideoItem, Collection, Project, DuplicateInfo, ScanJob, Stats, Tab, AppSettings } from './types'
 import Logo from './assets/logo.png'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
@@ -60,6 +60,18 @@ function App() {
     sample_interval: 10,
     model_name: 'yolov8n.pt',
     afterScan: 'none',
+  })
+
+  const [appSettings, setAppSettings] = useState<AppSettings | null>(null)
+  const [aiForm, setAiForm] = useState({ gemini_key: '', gemini_model: '', whisper_model: '' })
+  const [mediaRootInput, setMediaRootInput] = useState('/media')
+  const [scanDefaultsForm, setScanDefaultsForm] = useState({
+    yolo_enabled: false,
+    scene_detection_enabled: false,
+    shot_type_enabled: false,
+    color_palette_enabled: false,
+    sample_interval: 10,
+    after_scan: 'none',
   })
 
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null)
@@ -109,6 +121,7 @@ function App() {
         setToken(storedToken)
         await fetchMe()
         fetchFolders()
+        fetchSettings()
         fetchStats()
         fetchCollections()
         fetchProjects()
@@ -124,6 +137,7 @@ function App() {
     if (token) {
       fetchMe()
       fetchFolders()
+      fetchSettings()
       fetchStats()
       fetchCollections()
       fetchProjects()
@@ -281,6 +295,146 @@ function App() {
       }
     } catch (err) {
       setError('Failed to reset database')
+    }
+  }
+
+  const fetchSettings = async () => {
+    try {
+      const storedToken = localStorage.getItem('token')
+      const res = await fetch(`${API_BASE}/api/settings`, {
+        headers: storedToken ? { Authorization: `Bearer ${storedToken}` } : {}
+      })
+      if (!res.ok) return
+      const data: AppSettings = await res.json()
+      setAppSettings(data)
+      setMediaRootInput(data.media_root || '/media')
+      setAiForm({
+        gemini_key: '',
+        gemini_model: data.gemini_model || '',
+        whisper_model: data.whisper_model || 'base',
+      })
+      setScanDefaultsForm({
+        yolo_enabled: data.scan_defaults?.yolo_enabled ?? false,
+        scene_detection_enabled: data.scan_defaults?.scene_detection_enabled ?? false,
+        shot_type_enabled: data.scan_defaults?.shot_type_enabled ?? false,
+        color_palette_enabled: data.scan_defaults?.color_palette_enabled ?? false,
+        sample_interval: data.scan_defaults?.sample_interval ?? 10,
+        after_scan: data.scan_defaults?.after_scan ?? 'none',
+      })
+      if (data.media_root) setCurrentPath(data.media_root)
+    } catch (err) {
+      console.error('Failed to fetch settings')
+    }
+  }
+
+  const saveAiSettings = async () => {
+    setError(null)
+    const payload: Record<string, unknown> = {
+      gemini_model: aiForm.gemini_model || undefined,
+      whisper_model: aiForm.whisper_model || undefined,
+    }
+    if (aiForm.gemini_key.trim()) {
+      payload.gemini_api_key = aiForm.gemini_key.trim()
+    }
+    try {
+      const res = await fetch(`${API_BASE}/api/settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify(payload),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        setError(data.detail || 'Failed to save AI settings')
+        return
+      }
+      setAiForm((prev) => ({ ...prev, gemini_key: '' }))
+      await fetchSettings()
+    } catch (err) {
+      setError('Failed to save AI settings')
+    }
+  }
+
+  const clearGeminiKey = async () => {
+    setError(null)
+    try {
+      await fetch(`${API_BASE}/api/settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ gemini_api_key: '' }),
+      })
+      setAiForm((prev) => ({ ...prev, gemini_key: '' }))
+      await fetchSettings()
+    } catch (err) {
+      setError('Failed to clear Gemini key')
+    }
+  }
+
+  const saveScanDefaults = async () => {
+    setError(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          yolo_enabled: scanDefaultsForm.yolo_enabled,
+          scene_detection_enabled: scanDefaultsForm.scene_detection_enabled,
+          shot_type_enabled: scanDefaultsForm.shot_type_enabled,
+          color_palette_enabled: scanDefaultsForm.color_palette_enabled,
+          sample_interval: scanDefaultsForm.sample_interval,
+          after_scan: scanDefaultsForm.after_scan,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        setError(data.detail || 'Failed to save scan defaults')
+        return
+      }
+      setScanSettings({
+        yolo_enabled: scanDefaultsForm.yolo_enabled,
+        scene_detection_enabled: scanDefaultsForm.scene_detection_enabled,
+        shot_type_enabled: scanDefaultsForm.shot_type_enabled,
+        color_palette_enabled: scanDefaultsForm.color_palette_enabled,
+        sample_interval: scanDefaultsForm.sample_interval,
+        model_name: 'yolov8n.pt',
+        afterScan: scanDefaultsForm.after_scan === 'createByTag' ? 'createByTag' : 'none',
+      })
+    } catch (err) {
+      setError('Failed to save scan defaults')
+    }
+  }
+
+  const saveMediaRoot = async () => {
+    setError(null)
+    const path = mediaRootInput.trim() || '/media'
+    try {
+      const res = await fetch(`${API_BASE}/api/settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ media_root: path }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        setError(data.detail || 'Failed to save media root')
+        return
+      }
+      setMediaRootInput(path)
+      setCurrentPath(path)
+      await fetchSettings()
+      fetchFolders()
+    } catch (err) {
+      setError('Failed to save media root')
     }
   }
 
@@ -1883,9 +2037,166 @@ function App() {
                 </div>
               </div>
 
+              <div className="form-group" style={{ gridColumn: '1 / -1', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+                <label>AI & Transcription</label>
+                <div style={{ padding: '0.75rem', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
+                  <div style={{ marginBottom: '0.75rem' }}>
+                    <label style={{ marginBottom: '0.25rem' }}>Gemini API Key</label>
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                      <input
+                        type="password"
+                        placeholder={
+                          appSettings?.gemini_api_key_set
+                            ? appSettings.gemini_api_key_source === 'env'
+                              ? `Set via .env (${appSettings.gemini_api_key_masked})`
+                              : `Set (${appSettings.gemini_api_key_masked})`
+                            : 'Paste your Gemini API key'
+                        }
+                        value={aiForm.gemini_key}
+                        onChange={(e) => setAiForm({ ...aiForm, gemini_key: e.target.value })}
+                        style={{ flex: 1 }}
+                        autoComplete="off"
+                      />
+                      <button className="btn btn-primary" onClick={saveAiSettings}>
+                        Save
+                      </button>
+                      {appSettings?.gemini_api_key_source === 'db' && (
+                        <button className="btn btn-secondary" onClick={clearGeminiKey}>
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                      Used for auto-chapter generation. Stored locally and masked on screen.
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div>
+                      <label style={{ marginBottom: '0.25rem' }}>Gemini Model</label>
+                      <select
+                        value={aiForm.gemini_model || 'gemini-3.6-flash'}
+                        onChange={(e) => setAiForm({ ...aiForm, gemini_model: e.target.value })}
+                      >
+                        <option value="gemini-3.6-flash">gemini-3.6-flash</option>
+                        <option value="gemini-2.5-flash">gemini-2.5-flash</option>
+                        <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ marginBottom: '0.25rem' }}>Whisper Model</label>
+                      <select
+                        value={aiForm.whisper_model || 'base'}
+                        onChange={(e) => setAiForm({ ...aiForm, whisper_model: e.target.value })}
+                      >
+                        <option value="base">base (fast, default)</option>
+                        <option value="small">small</option>
+                        <option value="medium">medium</option>
+                        <option value="large-v3">large-v3 (slowest)</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+                <label>Scan Defaults</label>
+                <div style={{ padding: '0.75rem', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={scanDefaultsForm.yolo_enabled}
+                        onChange={(e) => setScanDefaultsForm({ ...scanDefaultsForm, yolo_enabled: e.target.checked })}
+                        style={{ width: '18px', height: '18px' }}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 500 }}>Object Detection</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Detect objects in frames</div>
+                      </div>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={scanDefaultsForm.scene_detection_enabled}
+                        onChange={(e) => setScanDefaultsForm({ ...scanDefaultsForm, scene_detection_enabled: e.target.checked })}
+                        style={{ width: '18px', height: '18px' }}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 500 }}>Scene Detection</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Detect scene changes</div>
+                      </div>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={scanDefaultsForm.shot_type_enabled}
+                        onChange={(e) => setScanDefaultsForm({ ...scanDefaultsForm, shot_type_enabled: e.target.checked })}
+                        style={{ width: '18px', height: '18px' }}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 500 }}>Shot Type Analysis</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Classify shots as WS/MS/CU</div>
+                      </div>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={scanDefaultsForm.color_palette_enabled}
+                        onChange={(e) => setScanDefaultsForm({ ...scanDefaultsForm, color_palette_enabled: e.target.checked })}
+                        style={{ width: '18px', height: '18px' }}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 500 }}>Color Palette</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Extract dominant colors</div>
+                      </div>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={scanDefaultsForm.after_scan === 'createByTag'}
+                        onChange={(e) => setScanDefaultsForm({ ...scanDefaultsForm, after_scan: e.target.checked ? 'createByTag' : 'none' })}
+                        style={{ width: '18px', height: '18px' }}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 500 }}>Create by Tag</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Auto-create collections</div>
+                      </div>
+                    </label>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.75rem' }}>
+                    <div style={{ width: '140px' }}>
+                      <label style={{ marginBottom: '0.25rem' }}>Sample Interval (s)</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={60}
+                        value={scanDefaultsForm.sample_interval}
+                        onChange={(e) => setScanDefaultsForm({ ...scanDefaultsForm, sample_interval: parseInt(e.target.value) || 1 })}
+                      />
+                    </div>
+                    <button className="btn btn-primary" onClick={saveScanDefaults}>
+                      Save Defaults
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               <div className="form-group">
                 <label>Media Root</label>
-                <input type="text" value="/media" readOnly />
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input
+                    type="text"
+                    value={mediaRootInput}
+                    onChange={(e) => setMediaRootInput(e.target.value)}
+                  />
+                  <button className="btn btn-secondary" onClick={saveMediaRoot}>
+                    Save
+                  </button>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                  Path inside the container where your videos live.
+                </div>
               </div>
 
               <div className="form-group" style={{ gridColumn: '1 / -1' }}>

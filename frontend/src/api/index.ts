@@ -239,6 +239,18 @@ export const api = {
   },
 
   settings: {
+    get: async (token: string | null) => {
+      const res = await fetch(`${API_BASE}/api/settings`, { headers: getHeaders(token) })
+      return res.json()
+    },
+    update: async (payload: Record<string, unknown>, token: string | null) => {
+      const res = await fetch(`${API_BASE}/api/settings`, {
+        method: 'POST',
+        headers: getHeaders(token),
+        body: JSON.stringify(payload),
+      })
+      return res.json()
+    },
     autoCreateCollections: async (token: string | null) => {
       const res = await fetch(`${API_BASE}/api/settings/auto-create-collections-by-tag`, {
         method: 'POST',
