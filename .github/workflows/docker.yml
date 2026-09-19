@@ -103,9 +103,10 @@ jobs:
       - name: Pull arm64 image
         run: |
           SHORT=${IMAGE_TAG:0:12}
-          echo "IMG=${{ env.REGISTRY }}/${{ github.repository }}:sha-${SHORT}" >> "$GITHUB_ENV"
+          IMG="${{ env.REGISTRY }}/${{ github.repository }}:sha-${SHORT}"
           echo "Pulling ${IMG}"
           docker pull --platform linux/arm64 "${IMG}"
+          echo "IMG=${IMG}" >> "$GITHUB_ENV"
 
       - name: Boot smoke test (arm64, qemu)
         run: |
