@@ -1090,9 +1090,9 @@ function App() {
             </nav>
           )}
           {user ? (
-            <button className="btn btn-secondary" onClick={handleLogout}>
+            <button className="btn btn-secondary" onClick={handleLogout} title={`Logged in as ${user.username}`}>
               <LogOut size={16} />
-              {user.username}
+              Log out
             </button>
           ) : (
             <button className="btn btn-primary" onClick={() => setShowLoginModal(true)}>
@@ -1104,7 +1104,7 @@ function App() {
       </header>
 
       <main className="main">
-        {error && (
+        {!showLoginModal && error && (
           <div className="error-message">
             {error}
             <button onClick={() => setError(null)} style={{ float: 'right', background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }}>
