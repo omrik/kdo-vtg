@@ -32,6 +32,7 @@ for arch in amd64 arm64; do
   fi
 done
 
+cd "${ROOT}"
 echo "==> ugcli check"
 ugcli check
 

@@ -27,14 +27,14 @@ permissions:
   - NETWORK.ACCESS_INTERNET
 
 parameters:
-  - key: TZ
-    type: string
-    required: false
+  - key: UGAPP_SHARED_DIR
+    type: path
+    required: true
     changeable: true
     i18n:
       en-US:
-        name: Timezone
-        description: Container timezone, e.g. "UTC" or "Europe/Bucharest"
+        name: Media folder
+        description: Folder with the video clips to scan (mounted read-only at /media)
   - key: PUID
     type: number
     required: false
@@ -81,6 +81,3 @@ i18n:
     help: https://github.com/omrik/kdo-vtg/blob/main/docs/USAGE.md
     publisher: omrik
     publisher_link: https://github.com/omrik/kdo-vtg
-    source_code_link: https://github.com/omrik/kdo-vtg
-    license_agreement_link: https://github.com/omrik/kdo-vtg/blob/main/LICENSE
-    technical_support_link: https://github.com/omrik/kdo-vtg/issues
