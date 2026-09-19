@@ -32,6 +32,13 @@ COPY VERSION ./
 
 COPY frontend/dist/ ./static/
 
+LABEL org.opencontainers.image.title="KDO Video Tagger"
+LABEL org.opencontainers.image.description="Self-hosted video metadata tagger: scan media folders, tag clips, detect scenes/objects/colors, local Whisper transcription, and Gemini chapter planning."
+LABEL org.opencontainers.image.source="https://github.com/omrik/kdo-vtg"
+LABEL org.opencontainers.image.url="https://github.com/omrik/kdo-vtg"
+LABEL org.opencontainers.image.documentation="https://github.com/omrik/kdo-vtg/blob/main/README.md"
+LABEL org.opencontainers.image.licenses="MIT"
+
 RUN mkdir -p /app/config /app/media
 
 ENV PYTHONUNBUFFERED=1
