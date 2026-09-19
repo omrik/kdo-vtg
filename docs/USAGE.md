@@ -136,7 +136,7 @@ Notes:
 
 The **Settings** tab is where you manage the application:
 
-- **Account** — change your display name and password
+- **Account** — shows the logged-in user, lets you change your password and log out
 - **AI & Transcription** — Gemini API key (masked in the UI), Gemini model, Whisper model
 - **Scan Defaults** — default analysis options for new scans (object/scene/shot/color, sample
   interval, create-by-tag). These pre-fill the Scan panel.
@@ -234,6 +234,33 @@ All endpoints require authentication (JWT Bearer token).
 │  Database (SQLite)                     │
 └─────────────────────────────────────────┘
 ```
+
+## Changing Your Password
+
+Open **Settings → Account → Change password**, enter your current password plus the
+new one (at least 6 characters), and confirm. You stay logged in.
+
+## Forgot Your Password?
+
+Since kdo-vtg is fully self-hosted, you can reset the password directly on the
+machine running it — no email or recovery needed.
+
+On the host, inside the folder where your `config` directory lives:
+
+```bash
+# Run inside the repository/directory where the app's data lives
+python3 -m backend.cli reset-password admin YourNewPass123
+```
+
+Point `DATABASE_URL` elsewhere if your database is not at `./config/kdo-vtg.db`:
+
+```bash
+DATABASE_URL="sqlite:////volume1/docker/kdo-vtg/kdo-vtg.db" \
+  python3 -m backend.cli reset-password admin YourNewPass123
+```
+
+Log in to the web UI with the new password. (The database is a single SQLite file,
+so backing it up also preserves the password change.)
 
 ## License
 

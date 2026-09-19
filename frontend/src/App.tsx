@@ -114,6 +114,46 @@ function App() {
   const [loginForm, setLoginForm] = useState({ username: '', password: '' })
   const [isRegister, setIsRegister] = useState(false)
 
+  const [showPwForm, setShowPwForm] = useState(false)
+  const [pwForm, setPwForm] = useState({ old_password: '', new_password: '', confirm: '' })
+  const [pwStatus, setPwStatus] = useState<{ ok: boolean; text: string } | null>(null)
+  const [pwBusy, setPwBusy] = useState(false)
+
+  const handleChangePassword = async () => {
+    setPwStatus(null)
+    if (pwForm.new_password.length < 6) {
+      setPwStatus({ ok: false, text: 'New password must be at least 6 characters' })
+      return
+    }
+    if (pwForm.new_password !== pwForm.confirm) {
+      setPwStatus({ ok: false, text: 'New password does not match confirmation' })
+      return
+    }
+    setPwBusy(true)
+    try {
+      const res = await fetch(`${API_BASE}/api/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ old_password: pwForm.old_password, new_password: pwForm.new_password }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setPwStatus({ ok: true, text: 'Password updated.' })
+        setPwForm({ old_password: '', new_password: '', confirm: '' })
+        setShowPwForm(false)
+      } else {
+        setPwStatus({ ok: false, text: data.detail || `Error: ${res.status}` })
+      }
+    } catch (err) {
+      setPwStatus({ ok: false, text: `Connection failed: ${err}` })
+    } finally {
+      setPwBusy(false)
+    }
+  }
+
   useEffect(() => {
     const init = async () => {
       const storedToken = localStorage.getItem('token')
@@ -2030,10 +2070,53 @@ function App() {
                 <label>Account</label>
                 <div style={{ padding: '0.5rem', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
                   <div>Logged in as <strong>{user.username}</strong></div>
-                  <button className="btn btn-secondary" style={{ marginTop: '0.5rem' }} onClick={handleLogout}>
-                    <LogOut size={14} />
-                    Logout
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem', alignItems: 'center' }}>
+                    <button className="btn btn-secondary" onClick={() => { setShowPwForm(!showPwForm); setPwStatus(null) }}>
+                      Change password
+                    </button>
+                    <button className="btn btn-secondary" onClick={handleLogout}>
+                      <LogOut size={14} />
+                      Log out
+                    </button>
+                  </div>
+                  {showPwForm && (
+                    <div style={{ marginTop: '0.75rem', borderTop: '1px solid var(--border)', paddingTop: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      <input
+                        type="password"
+                        placeholder="Current password"
+                        value={pwForm.old_password}
+                        onChange={(e) => setPwForm({ ...pwForm, old_password: e.target.value })}
+                        autoComplete="current-password"
+                      />
+                      <input
+                        type="password"
+                        placeholder="New password (min 6 characters)"
+                        value={pwForm.new_password}
+                        onChange={(e) => setPwForm({ ...pwForm, new_password: e.target.value })}
+                        autoComplete="new-password"
+                      />
+                      <input
+                        type="password"
+                        placeholder="Confirm new password"
+                        value={pwForm.confirm}
+                        onChange={(e) => setPwForm({ ...pwForm, confirm: e.target.value })}
+                        autoComplete="new-password"
+                      />
+                      {pwStatus && (
+                        <div className={pwStatus.ok ? 'success-message' : 'error-message'} style={{ marginBottom: 0 }}>
+                          {pwStatus.text}
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <button className="btn btn-primary" onClick={handleChangePassword} disabled={pwBusy}>
+                          {pwBusy ? 'Updating...' : 'Update password'}
+                        </button>
+                        <button className="btn btn-secondary" onClick={() => { setShowPwForm(false); setPwStatus(null); setPwForm({ old_password: '', new_password: '', confirm: '' }) }}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

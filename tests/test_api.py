@@ -83,6 +83,30 @@ class TestAuth:
         )
         assert response.status_code == 401
 
+    def test_change_password_requires_auth(self, client):
+        response = client.post(
+            "/api/auth/change-password",
+            json={"old_password": "admin123", "new_password": "whatever123"}
+        )
+        assert response.status_code == 401
+
+    def test_change_password_wrong_old(self, client, auth):
+        response = client.post(
+            "/api/auth/change-password",
+            headers=auth,
+            json={"old_password": "not-the-password", "new_password": "whatever123"}
+        )
+        assert response.status_code == 400
+        assert "incorrect" in response.json()["detail"].lower()
+
+    def test_change_password_too_short(self, client, auth):
+        response = client.post(
+            "/api/auth/change-password",
+            headers=auth,
+            json={"old_password": "admin123", "new_password": "123"}
+        )
+        assert response.status_code == 400
+
 
 class TestFolders:
     def test_list_folders_requires_auth(self, client):

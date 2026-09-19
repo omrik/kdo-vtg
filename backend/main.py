@@ -41,6 +41,11 @@ class RegisterRequest(BaseModel):
     password: str
 
 
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+
+
 class UserResponse(BaseModel):
     id: int
     username: str
@@ -164,6 +169,32 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
 @app.get("/api/auth/me")
 def get_me(user: User = Depends(get_current_user)):
     return {"id": user.id, "username": user.username, "is_admin": user.is_admin}
+
+
+@app.post("/api/auth/change-password")
+def change_password(
+    request: ChangePasswordRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    if not verify_password(request.old_password, user.hashed_password):
+        raise HTTPException(
+            status_code=400,
+            detail="Current password is incorrect",
+        )
+    if len(request.new_password) < 6:
+        raise HTTPException(
+            status_code=400,
+            detail="New password must be at least 6 characters",
+        )
+    if request.new_password == request.old_password:
+        raise HTTPException(
+            status_code=400,
+            detail="New password must be different from the current password",
+        )
+    user.hashed_password = get_password_hash(request.new_password)
+    db.commit()
+    return {"status": "ok", "message": "Password updated"}
 
 
 class ScanRequest(BaseModel):

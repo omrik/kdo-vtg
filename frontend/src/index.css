@@ -374,6 +374,17 @@ td {
   font-weight: 500;
 }
 
+.success-message {
+  background-color: rgba(63, 185, 80, 0.15);
+  border: 1px solid #3fb950;
+  color: #56d364;
+  padding: 0.875rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
 .empty-state {
   text-align: center;
   padding: 3rem;
