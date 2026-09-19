@@ -2288,6 +2288,11 @@ function App() {
                 onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
               />
             </div>
+            {error && (
+              <div className="error-message" style={{ marginTop: '0.875rem' }}>
+                {error}
+              </div>
+            )}
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
               <button className="btn btn-primary" onClick={handleLogin}>
                 {isFirstRun ? 'Create Account' : isRegister ? 'Register' : 'Login'}
