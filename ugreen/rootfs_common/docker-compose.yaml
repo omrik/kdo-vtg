@@ -1,0 +1,21 @@
+# UGOS App Center compose template for KDO Video Tagger.
+# Variables come from `parameters` in config/project.yaml plus UGOS-provided
+# ${UGAPP_SHARED_DIR} (authorized folders) and ${APP_DATA_DIR} (app data dir).
+# The image tag is set per build by scripts/build-upk.sh and must match the
+# saved tar (never `latest`).
+services:
+  kdo-vtg:
+    image: ghcr.io/omrik/kdo-vtg:${KDO_IMG_TAG}
+    container_name: com.omrik.docker.kdovideotagger
+    network_mode: bridge
+    ports:
+      - "${WEBUI_PORT}:8000"
+    volumes:
+      - ${APP_DATA_DIR}:/app/config:rw
+      - ${UGAPP_SHARED_DIR}:/media:ro
+    environment:
+      - TZ=${TZ}
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    restart: always

@@ -15,8 +15,10 @@ import pytest
 from httpx import Client
 
 
-BASE_URL = os.environ.get("BASE_URL", "http://localhost:8080")
+BASE_URL = os.environ.get("BASE_URL", os.environ.get("TEST_BASE_URL", "http://localhost:8080"))
 SCAN_TEST_PATH = os.environ.get("SCAN_TEST_PATH", "/media/Scan")
+ADMIN_USER = os.environ.get("TEST_ADMIN_USER", "admin")
+ADMIN_PASS = os.environ.get("TEST_ADMIN_PASS", "admin123")
 
 
 @pytest.fixture(scope="module")
@@ -30,7 +32,7 @@ def auth(client):
     """Login and return auth headers"""
     response = client.post(
         "/api/auth/login",
-        json={"username": "admin", "password": "admin123"}
+        json={"username": ADMIN_USER, "password": ADMIN_PASS}
     )
     assert response.status_code == 200
     token = response.json()["access_token"]
@@ -69,7 +71,7 @@ class TestAuth:
     def test_login_success(self, client):
         response = client.post(
             "/api/auth/login",
-            json={"username": "admin", "password": "admin123"}
+            json={"username": ADMIN_USER, "password": ADMIN_PASS}
         )
         assert response.status_code == 200
         data = response.json()
@@ -79,14 +81,14 @@ class TestAuth:
     def test_login_wrong_password(self, client):
         response = client.post(
             "/api/auth/login",
-            json={"username": "admin", "password": "wrong"}
+            json={"username": ADMIN_USER, "password": "wrong"}
         )
         assert response.status_code == 401
 
     def test_change_password_requires_auth(self, client):
         response = client.post(
             "/api/auth/change-password",
-            json={"old_password": "admin123", "new_password": "whatever123"}
+            json={"old_password": ADMIN_PASS, "new_password": "whatever123"}
         )
         assert response.status_code == 401
 
@@ -103,7 +105,7 @@ class TestAuth:
         response = client.post(
             "/api/auth/change-password",
             headers=auth,
-            json={"old_password": "admin123", "new_password": "123"}
+            json={"old_password": ADMIN_PASS, "new_password": "123"}
         )
         assert response.status_code == 400
 

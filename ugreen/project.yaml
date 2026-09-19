@@ -1,0 +1,86 @@
+# UGOS Pro application configuration for KDO Video Tagger (Docker app).
+# Validate with `ugcli check`; see https://developer.ugnas.com/en/doc/tools/project-yaml.html
+spec_version: "2.1"
+app_id: com.omrik.docker.kdovideotagger
+version: "0.6.17"
+support_arch:
+  - amd64
+  - arm64
+product_series:
+  - nasync
+
+is_docker_app: true
+only_admin: true
+port: 8080
+open_type: tab
+tag_types:
+  - utility
+
+depend_fw_version: 1.13.0.0000
+depend_docker_version: 1.7.0.0000
+
+# Users may grant the app access to media folders. Authorized folders are
+# exposed to the container via ${UGAPP_SHARED_DIR} (mounted at /media).
+allow_add_access_path: true
+
+permissions:
+  - NETWORK.ACCESS_INTERNET
+
+parameters:
+  - key: TZ
+    type: string
+    required: false
+    changeable: true
+    i18n:
+      en-US:
+        name: Timezone
+        description: Container timezone, e.g. "UTC" or "Europe/Bucharest"
+  - key: PUID
+    type: number
+    required: false
+    changeable: true
+    i18n:
+      en-US:
+        name: User ID
+        description: Numeric user ID for file permissions, e.g. 1000
+  - key: PGID
+    type: number
+    required: false
+    changeable: true
+    i18n:
+      en-US:
+        name: Group ID
+        description: Numeric group ID for file permissions, e.g. 100
+  - key: WEBUI_PORT
+    type: number
+    required: true
+    changeable: true
+    i18n:
+      en-US:
+        name: Web UI port
+        description: Port for the web interface, e.g. 8080 (keep fixed after install)
+  - key: GEMINI_API_KEY
+    type: password
+    required: false
+    changeable: true
+    i18n:
+      en-US:
+        name: Gemini API key (optional)
+        description: Optional key for AI chapter generation. Leave empty otherwise
+
+i18n:
+  en-US:
+    name: KDO Video Tagger
+    description: >-
+      Self-hosted video metadata tagger. Scan media folders and tag every
+      clip with resolution, codec, duration, scene type, objects, GPS and
+      color; export CSV/Excel and EDL; optional local Whisper transcription
+      and Gemini chapter planning. Your footage never leaves your NAS.
+    author: omrik
+    official: https://github.com/omrik/kdo-vtg
+    help: https://github.com/omrik/kdo-vtg/blob/main/docs/USAGE.md
+    publisher: omrik
+    publisher_link: https://github.com/omrik/kdo-vtg
+    source_code_link: https://github.com/omrik/kdo-vtg
+    license_agreement_link: https://github.com/omrik/kdo-vtg/blob/main/LICENSE
+    technical_support_link: https://github.com/omrik/kdo-vtg/issues

@@ -28,3 +28,8 @@ config/thumbnails/
 # Local-only assets
 black-logo-g.png
 black-logo-sol-g.png
+
+# UGOS UpK build outputs
+ugreen/rootfs_amd64/images/
+ugreen/rootfs_arm64/images/
+ugreen/build/
