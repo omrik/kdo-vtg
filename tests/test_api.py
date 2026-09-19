@@ -3,7 +3,7 @@ KDO Video Tagger - API Tests
 
 Run against local Docker container:
     docker build -t kdo-vtg:stage .
-    docker run -d -p 8080:8000 -v ~/Movies:/media:ro -v kdo-vtg-test:/app/config --name kdo-vtg-test kdo-vtg:stage
+    docker run -d -p 8080:8000 -v /path/to/your/videos:/media:ro -v kdo-vtg-test:/app/config --name kdo-vtg-test kdo-vtg:stage
 
 Then run tests (BASE_URL/SCAN_TEST_PATH can be overridden via env):
     pytest tests/ -v

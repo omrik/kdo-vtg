@@ -24,3 +24,7 @@ venv
 config/*.db
 .DS_Store
 config/thumbnails/
+
+# Local-only assets
+black-logo-g.png
+black-logo-sol-g.png

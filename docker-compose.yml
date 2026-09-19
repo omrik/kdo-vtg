@@ -1,15 +1,16 @@
 services:
   kdo-vtg:
     build: .
-    container_name: kdo-vtg
+    container_name: ${CONTAINER_NAME:-kdo-vtg}
     ports:
-      - "8080:8000"
+      - "${HOST_PORT:-8080}:8000"
     volumes:
-      - ./config:/app/config:rw
-      - /Users/omrik/Movies:/media:ro
+      - ${KDO_CONFIG_DIR:-./config}:/app/config
+      - ${MEDIA_PATH:-./media}:/media:ro
     environment:
-      - TZ=Europe/Bucharest
-      - PUID=1000
-      - PGID=100
+      - TZ=${TZ:-UTC}
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-100}
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - JWT_SECRET=${JWT_SECRET:-}
     restart: unless-stopped

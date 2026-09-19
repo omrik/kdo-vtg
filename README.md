@@ -68,7 +68,7 @@ MEDIA_PATH=/path/to/your/videos bash install.sh
 ```bash
 docker pull ghcr.io/omrik/kdo-vtg:latest
 docker run -d -p 8080:8000 \
-  -v ~/Movies:/media:ro \
+  -v /path/to/your/videos:/media:ro \
   -v kdo-vtg-config:/app/config \
   ghcr.io/omrik/kdo-vtg:latest
 ```

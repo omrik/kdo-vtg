@@ -45,7 +45,6 @@ ENV PYTHONUNBUFFERED=1
 ENV HOST=0.0.0.0
 ENV PORT=8000
 ENV DATABASE_URL=sqlite:///./config/kdo-vtg.db
-ENV JWT_SECRET=change-this-in-production
 ENV PYTHONPATH=/app
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \

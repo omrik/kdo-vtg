@@ -21,46 +21,15 @@ the UI on port `8080`. Override with `PORT=9000`, `CONFIG_DIR=...`, or
 - **Storage:** Videos stored on NAS volumes
 - **Network:** NAS accessible on your local network
 
-### Step 1: Install Dockhand
+### Step 1: Deploy kdo-vtg with the built-in Docker app
 
-Dockhand is a Docker management UI for NAS systems.
+UGOS Pro ships a Docker app with a Compose editor — no extra management UI needed.
 
-1. Open **Docker** app on your UGREEN NAS
-2. Go to **Project** → **Create**
-3. Name: `dockhand`
-4. Create folder: `dockhand`
-5. Select → **Confirm**
-6. Paste and deploy:
-
-```yaml
-services:
-  dockhand:
-    image: fnsys/dockhand:latest
-    container_name: Dockhand
-    ports:
-      - 3866:3000
-    volumes:
-      - /volume1/docker/dockhand:/app/data:rw
-      - /var/run/docker.sock:/var/run/docker.sock
-    restart: always
-```
-
-7. Access Dockhand at `http://<your-nas-ip>:3866`
-
-### Step 2: Add GitHub Container Registry
-
-1. In Dockhand, go to **Settings** → **Registries**
-2. Click **+ Add registry**
-3. Name: `GitHub`
-4. URL: `https://ghcr.io`
-5. Click **+ Add**
-
-### Step 3: Deploy kdo-vtg
-
-1. Go to **Stacks** → **+ Create**
-2. Name: `kdo-vtg`
-3. Create folder `/volume1/docker/kdo-vtg/` via UGREEN Files app
-4. Paste the compose:
+1. Open **App Center** and install the **Docker** app (if not already installed)
+2. Open **Docker** → **Project** → **Create**
+3. Name: `kdo-vtg`
+4. Create folder `/volume1/docker/kdo-vtg/` via the UGREEN Files app
+5. Paste the compose, then **Create & Start**:
 
 ```yaml
 services:
@@ -73,17 +42,19 @@ services:
       - kdo_vtg_config:/app/config
       - /volume1/media:/media:ro
     environment:
-      - TZ=Europe/Bucharest
+      - TZ=UTC
       - PUID=1000
       - PGID=100
-      - JWT_SECRET=your-secret-key-here
     restart: unless-stopped
 
 volumes:
   kdo_vtg_config:
 ```
 
-5. Click **Create & Start**
+> `JWT_SECRET` is optional — if unset, the app generates and persists a random
+> signing secret on first start. `GEMINI_API_KEY` is only needed for AI chapter
+> generation (see the [Usage Guide](USAGE.md)).
+
 6. Access at `http://<your-nas-ip>:8080`
 
 ### Step 4: Mount Your Videos
@@ -106,8 +77,8 @@ volumes:
 
 | Problem | Solution |
 |---------|----------|
-| Can't access Dockhand | Check port 3866 is not in use |
-| kdo-vtg won't start | Check logs in Dockhand |
+| kdo-vtg won't start | Open Docker → Project → check kdo-vtg logs |
+| Port 8080 already in use | Change to `"8081:8000"` in the compose |
 | No folders showing | Verify volume mount path exists |
 | "Out of memory" during scan | Disable YOLO or use smaller model |
 
@@ -127,9 +98,9 @@ volumes:
 # Pull the image
 docker pull ghcr.io/omrik/kdo-vtg:latest
 
-# Run with your Movies folder
+# Run with your video folder
 docker run -d -p 8080:8000 \
-  -v ~/Movies:/media:ro \
+  -v /path/to/your/videos:/media:ro \
   -v kdo-vtg-config:/app/config \
   --name kdo-vtg \
   ghcr.io/omrik/kdo-vtg:latest
@@ -139,7 +110,7 @@ docker run -d -p 8080:8000 \
 
 ### Custom Video Path
 
-Replace `~/Movies` with your video folder:
+Replace `/path/to/your/videos` with your video folder:
 
 ```bash
 # Example for Windows
@@ -188,16 +159,17 @@ docker stop kdo-vtg && docker rm kdo-vtg
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `JWT_SECRET` | Secret for JWT tokens | `change-this-in-production` |
+| `JWT_SECRET` | Secret for JWT tokens (random, persisted secret generated if unset) | *(auto-generated)* |
 | `DATABASE_URL` | SQLite database path | `sqlite:///./config/kdo-vtg.db` |
 | `TZ` | Timezone | `UTC` |
 | `PUID` | User ID (Linux) | `1000` |
 | `PGID` | Group ID (Linux) | `100` |
 | `GEMINI_API_KEY` | Optional key for AI chapter generation | *(unset)* |
 
-### Set JWT Secret
+### Set JWT Secret (optional)
 
-**Important:** Change the JWT secret for production use!
+By default the app generates and persists a random signing secret on first start.
+You can pin your own for multi-instance or backup-restore scenarios:
 
 ```yaml
 environment:

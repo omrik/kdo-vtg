@@ -139,14 +139,14 @@ docker stop kdo-vtg-local && docker rm kdo-vtg-local
 
 ```bash
 # Pull latest image
-docker pull ghcr.io/omrik/kdo-vtg:main
+docker pull ghcr.io/omrik/kdo-vtg:latest
 
 # Run on PC/Mac
 docker run -d -p 8080:8000 \
-  -v /Users/yourname/Movies:/media:ro \
+  -v /path/to/your/videos:/media:ro \
   -v kdo-vtg-config:/app/config \
   --name kdo-vtg \
-  ghcr.io/omrik/kdo-vtg:main
+  ghcr.io/omrik/kdo-vtg:latest
 
 # Access at http://localhost:8080
 ```
@@ -158,14 +158,14 @@ docker run -d -p 8080:8000 \
 ssh user@<nas-ip>
 
 # Pull latest image
-docker pull ghcr.io/omrik/kdo-vtg:main
+docker pull ghcr.io/omrik/kdo-vtg:latest
 
 # Run with volume mounts (adjust path for your NAS)
 docker run -d -p 8080:8000 \
   -v /volume1/media:/media:ro \
   -v kdo-vtg-config:/app/config \
   --name kdo-vtg \
-  ghcr.io/omrik/kdo-vtg:main
+  ghcr.io/omrik/kdo-vtg:latest
 
 # Check logs
 docker logs -f kdo-vtg
@@ -206,14 +206,14 @@ Since Dockhand doesn't have a REST API, control Docker directly via SSH:
 ssh user@<nas-ip> "docker ps"
 
 # Redeploy container
-ssh user@<nas-ip> "docker pull ghcr.io/omrik/kdo-vtg:main && \
+ssh user@<nas-ip> "docker pull ghcr.io/omrik/kdo-vtg:latest && \
   docker stop kdo-vtg || true && \
   docker rm kdo-vtg || true && \
   docker run -d -p 8080:8000 \
     -v /volume1/media:/media:ro \
     -v kdo-vtg-config:/app/config \
     --name kdo-vtg \
-    ghcr.io/omrik/kdo-vtg:main"
+    ghcr.io/omrik/kdo-vtg:latest"
 ```
 
 ### Recommended: Git-based Deploy via Dockhand
@@ -282,10 +282,10 @@ cd backend && uvicorn main:app --reload  # Backend dev
 
 # --- Local Docker (PC/Mac) ---
 docker build -t kdo-vtg:dev .
-docker run -p 8080:8000 -v ~/Movies:/media:ro kdo-vtg:dev
+docker run -p 8080:8000 -v /path/to/your/videos:/media:ro kdo-vtg:dev
 
 # --- NAS SSH Commands ---
-ssh user@<nas-ip> "docker pull ghcr.io/omrik/kdo-vtg:main"
+ssh user@<nas-ip> "docker pull ghcr.io/omrik/kdo-vtg:latest"
 ssh user@<nas-ip> "docker logs kdo-vtg --tail 100"
 
 # --- Git Workflow ---

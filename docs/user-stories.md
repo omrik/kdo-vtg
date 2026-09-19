@@ -33,7 +33,7 @@ This document describes the key user workflows and what needs to be built to sup
 3. User runs container with local video mount:
    ```bash
    docker run -d -p 8080:8000 \
-     -v ~/Movies:/media:ro \
+     -v /path/to/your/videos:/media:ro \
      -v kdo-vtg-config:/app/config \
      ghcr.io/omrik/kdo-vtg:latest
    ```

@@ -7,7 +7,7 @@
 #   IMAGE_NAME      Docker image tag        (default: kdo-vtg:stage)
 #   CONTAINER_NAME  Container name          (default: kdo-vtg-test)
 #   HOST_PORT       Host port to publish    (default: 8080)
-#   MEDIA_PATH      Host media path to mount(default: ~/Movies)
+#   MEDIA_PATH      Host media path to mount (default: /path/to/videos)
 #   CONFIG_VOLUME   Docker volume for config(default: kdo-vtg-config)
 
 set -e

@@ -53,7 +53,7 @@ services:
       - kdo_vtg_config:/app/config
       - /volume1/media:/media:ro
     environment:
-      - TZ=Europe/Bucharest
+      - TZ=UTC
       - PUID=1000
       - PGID=100
     restart: unless-stopped

@@ -8,7 +8,7 @@ services:
       - /path/to/config:/app/config
       - /path/to/videos:/media:ro
     environment:
-      - TZ=Europe/Bucharest
+      - TZ=UTC
       - PUID=1000
       - PGID=100
       - GEMINI_API_KEY=${GEMINI_API_KEY:-}

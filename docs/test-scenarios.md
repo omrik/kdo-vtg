@@ -767,7 +767,7 @@ BASE_URL=http://localhost:8080
 
 ### Run All API Tests
 ```bash
-cd /Users/omrik/Documents/kdo-vtg
+cd <repo-root>
 python3 -m pytest tests/test_api.py -v
 ```
 
