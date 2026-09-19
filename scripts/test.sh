@@ -55,7 +55,7 @@ done
 # Registration only succeeds on an empty user table; ignore errors otherwise.
 curl -s -X POST "$BASE_URL/api/auth/register" \
     -H 'Content-Type: application/json' \
-    -d '{"username":"admin","password":"admin123"}' >/dev/null 2>&1 || true
+    -d '{"username":"admin","password":"hthr07"}' >/dev/null 2>&1 || true
 
 # Provide a small, writable folder inside the container for scan tests.
 if docker exec "$CONTAINER_NAME" mkdir -p /app/testdata 2>/dev/null; then

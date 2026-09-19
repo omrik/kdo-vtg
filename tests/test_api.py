@@ -18,7 +18,7 @@ from httpx import Client
 BASE_URL = os.environ.get("BASE_URL", os.environ.get("TEST_BASE_URL", "http://localhost:8080"))
 SCAN_TEST_PATH = os.environ.get("SCAN_TEST_PATH", "/media/Scan")
 ADMIN_USER = os.environ.get("TEST_ADMIN_USER", "admin")
-ADMIN_PASS = os.environ.get("TEST_ADMIN_PASS", "admin123")
+ADMIN_PASS = os.environ.get("TEST_ADMIN_PASS", "hthr07")
 
 
 @pytest.fixture(scope="module")

@@ -20,7 +20,7 @@ BASE_URL=http://localhost:8080
 
 | Username | Password | Purpose |
 |----------|----------|---------|
-| admin | admin123 | Primary admin account |
+| admin | hthr07 | Primary admin account (test instance) |
 
 ---
 
@@ -781,7 +781,7 @@ python3 -m pytest tests/test_api.py -v -k "test_login"
 # Get token
 TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"admin","password":"admin123"}' | jq -r '.access_token')
+  -d '{"username":"admin","password":"hthr07"}' | jq -r '.access_token')
 
 # Test endpoints
 curl -H "Authorization: Bearer $TOKEN" http://localhost:8080/api/videos
