@@ -102,7 +102,10 @@ jobs:
 
       - name: Pull arm64 image
         run: |
-          docker pull --platform linux/arm64 ${{ env.REGISTRY }}/${{ github.repository }}:sha-${{ env.IMAGE_TAG }}
+          SHORT=${IMAGE_TAG:0:12}
+          echo "IMG=${{ env.REGISTRY }}/${{ github.repository }}:sha-${SHORT}" >> "$GITHUB_ENV"
+          echo "Pulling ${IMG}"
+          docker pull --platform linux/arm64 "${IMG}"
 
       - name: Boot smoke test (arm64, qemu)
         run: |
@@ -111,7 +114,7 @@ jobs:
             --name kdo-smoke \
             -v /tmp/kdo-smoke:/app/config \
             -p 18080:8000 \
-            ${{ env.REGISTRY }}/${{ github.repository }}:sha-${{ env.IMAGE_TAG }}
+            "${IMG}"
           n=0
           until [ "$n" -ge 30 ]; do
             code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:18080/api/health || true)
