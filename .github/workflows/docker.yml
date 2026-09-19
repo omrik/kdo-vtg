@@ -60,23 +60,15 @@ jobs:
         with:
           context: .
           platforms: linux/amd64
-          driver: docker-container
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: |
             ${{ steps.meta.outputs.labels }}
-            org.opencontainers.image.title=KDO Video Tagger
             org.opencontainers.image.description=Self-hosted video metadata tagger: scan media folders, tag clips, detect scenes/objects/colors, local Whisper transcription, and Gemini chapter planning.
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.url=https://github.com/${{ github.repository }}
-            org.opencontainers.image.documentation=https://github.com/${{ github.repository }}/blob/main/README.md
           annotations: |
-            ${{ steps.meta.outputs.annotations }}
             org.opencontainers.image.title=KDO Video Tagger
             org.opencontainers.image.description=Self-hosted video metadata tagger: scan media folders, tag clips, detect scenes/objects/colors, local Whisper transcription, and Gemini chapter planning.
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.url=https://github.com/${{ github.repository }}
-            org.opencontainers.image.documentation=https://github.com/${{ github.repository }}/blob/main/README.md
+            ${{ steps.meta.outputs.annotations }}
 
       - name: Set container package description
         if: env.PKG_PAT != ''
