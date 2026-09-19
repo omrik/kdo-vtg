@@ -60,6 +60,7 @@ jobs:
         with:
           context: .
           platforms: linux/amd64
+          driver: docker-container
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: |
