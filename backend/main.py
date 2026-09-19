@@ -5,7 +5,7 @@ from typing import Optional, List
 from pathlib import Path
 from io import BytesIO
 
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Query, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks, Query, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -80,6 +80,19 @@ app.add_middleware(
 static_path = Path(__file__).parent.parent / "static"
 if static_path.exists():
     app.mount("/assets", StaticFiles(directory=str(static_path / "assets")), name="assets")
+
+    @app.get("/favicon.ico")
+    @app.get("/favicon-32.png")
+    @app.get("/favicon-16.png")
+    @app.get("/apple-touch-icon.png")
+    async def _favicon_route(request: Request):
+        name = request.url.path.lstrip("/")
+        favicon_path = static_path / name
+        if not favicon_path.is_file() and name == "favicon.ico":
+            favicon_path = static_path / "favicon-32.png"
+        if favicon_path.is_file():
+            return FileResponse(str(favicon_path), media_type="image/png")
+        return Response(status_code=404)
 
 
 def get_version():

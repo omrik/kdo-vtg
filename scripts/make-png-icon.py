@@ -1,19 +1,15 @@
 #!/usr/bin/env python3
-"""Generate the UGOS App Center icon (256x256 PNG) from the app logo.
+"""Generate square PNG app icons (favicons, App Store icons) from the logo.
 
-Pure-python PNG decode/encode so it runs anywhere (no PIL/ImageMagick).
+Pure-python PNG decode/encode — no PIL/ImageMagick needed.
 
-Usage: python3 ugreen/scripts/make-icon.py [logo.png] [out.png]
+Usage:
+    python3 scripts/make-png-icon.py <src.png> <out.png> <size>
 """
 
 import struct
 import sys
 import zlib
-
-
-def read_png(path):
-    with open(path, "rb") as f:
-        return f.read()
 
 
 def decode_png(data):
@@ -31,6 +27,8 @@ def decode_png(data):
                 raise ValueError(f"unsupported bit depth {bit_depth}")
         elif ctype == b"IDAT":
             idat += chunk
+        elif ctype == b"PLTE" and color_type in (3,):
+            raise ValueError("palette PNGs not supported")
         pos += 12 + length
     if color_type not in (2, 6):
         raise ValueError(f"unsupported color type {color_type}")
@@ -69,26 +67,30 @@ def decode_png(data):
     return width, height, channels, rows
 
 
-def encode_png(width, height, rows, channels=4):
+def encode_png(size, rows):
     raw = b"".join(b"\x00" + r for r in rows)
+
     def chunk(ctype, payload):
         return struct.pack(">I", len(payload)) + ctype + payload + struct.pack(
             ">I", zlib.crc32(ctype + payload) & 0xFFFFFFFF
         )
-    ihdr = chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0))
+
+    ihdr = chunk(b"IHDR", struct.pack(">IIBBBBB", size, size, 8, 6, 0, 0, 0))
     idat = chunk(b"IDAT", zlib.compress(raw, 9))
     return b"\x89PNG\r\n\x1a\n" + ihdr + idat + chunk(b"IEND", b"")
 
 
 def main():
-    src = sys.argv[1] if len(sys.argv) > 1 else "frontend/src/assets/logo.png"
-    out = sys.argv[2] if len(sys.argv) > 2 else "ugreen/rootfs_common/icon.png"
-    size = 256
-    w, h, channels, rows = decode_png(read_png(src))
+    if len(sys.argv) != 4:
+        print(__doc__)
+        sys.exit(1)
+    src, out, size = sys.argv[1], sys.argv[2], int(sys.argv[3])
+    with open(src, "rb") as f:
+        data = f.read()
+    w, h, channels, rows = decode_png(data)
     scale = min(size / w, size / h)
     tw, th = max(1, round(w * scale)), max(1, round(h * scale))
     ox, oy = (size - tw) // 2, (size - th) // 2
-    canvas = [[(0, 0, 0, 0)] * size for _ in range(size)]
 
     def px(x, y):
         if x < 0 or x >= w or y < 0 or y >= h:
@@ -99,6 +101,7 @@ def main():
             return (r[i], r[i + 1], r[i + 2], r[i + 3])
         return (r[i], r[i + 1], r[i + 2], 255)
 
+    canvas = [[(0, 0, 0, 0)] * size for _ in range(size)]
     for dy in range(th):
         for dx in range(tw):
             canvas[oy + dy][ox + dx] = px(
@@ -108,11 +111,9 @@ def main():
     for row in canvas:
         for r, g, b, a in row:
             flat += [r, g, b, a]
-    rows_enc = [
-        bytes(flat[y * size * 4 : (y + 1) * size * 4]) for y in range(size)
-    ]
+    enc_rows = [bytes(flat[y * size * 4 : (y + 1) * size * 4]) for y in range(size)]
     with open(out, "wb") as f:
-        f.write(encode_png(size, size, rows_enc))
+        f.write(encode_png(size, enc_rows))
     print(f"wrote {out} ({size}x{size}) from {src}")
 
 

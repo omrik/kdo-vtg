@@ -12,10 +12,9 @@ ugreen/
 ├── rootfs_amd64/images/      # image tar (amd64)  -- created by export-images.sh
 ├── rootfs_arm64/images/      # image tar (arm64)  -- created by export-images.sh
 ├── rootfs_common/
-│   ├── icon.png              # 256x256 App Center icon
+│   ├── icon.png                  # 256x256 App Center icon (gen: ../scripts/make-png-icon.py)
 │   └── docker-compose.yaml   # Compose template (${VAR} from project.yaml)
 └── scripts/
-    ├── make-icon.py          # regenerate icon.png from the logo
     ├── export-images.sh      # docker save amd64/arm64 tars into rootfs_*
     └── build-upk.sh          # pin version, sync tars, ugcli check + pack
 ```
