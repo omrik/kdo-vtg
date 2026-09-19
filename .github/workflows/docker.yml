@@ -17,6 +17,8 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      meta_tags: ${{ join(steps.meta.outputs.tags, ',') }}
 
     steps:
       - name: Checkout
@@ -92,7 +94,6 @@ jobs:
     needs: build
     env:
       REGISTRY: ghcr.io
-      IMAGE_TAG: ${{ github.sha }}
     steps:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -101,9 +102,11 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Pull arm64 image
+        env:
+          META_TAGS: ${{ needs.build.outputs.meta_tags }}
         run: |
-          SHORT=${IMAGE_TAG:0:12}
-          IMG="${{ env.REGISTRY }}/${{ github.repository }}:sha-${SHORT}"
+          IMG=$(printf '%s\n' "$META_TAGS" | tr ',' '\n' | grep -oE "${REGISTRY}/[^:]+:[0-9a-f]{7,40}" | head -1)
+          [ -n "$IMG" ] || { echo "no sha tag found in meta_tags"; exit 1; }
           echo "Pulling ${IMG}"
           docker pull --platform linux/arm64 "${IMG}"
           echo "IMG=${IMG}" >> "$GITHUB_ENV"
