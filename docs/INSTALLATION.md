@@ -1,5 +1,18 @@
 # KDO Video Tagger - Installation Guide
 
+## One-command installer (Linux / macOS)
+
+```bash
+curl -fsSL -o install.sh https://raw.githubusercontent.com/omrik/kdo-vtg/main/install.sh
+MEDIA_PATH=/path/to/your/videos bash install.sh
+```
+
+Mounts your footage read-only at `/media`, stores config in `./kdo-data`, and exposes
+the UI on port `8080`. Override with `PORT=9000`, `CONFIG_DIR=...`, or
+`GEMINI_API_KEY=...` before running. Prefer the manual paths below for NAS systems.
+
+---
+
 ## Option 1: UGREEN NAS (Recommended for centralized storage)
 
 ### Prerequisites
@@ -180,6 +193,7 @@ docker stop kdo-vtg && docker rm kdo-vtg
 | `TZ` | Timezone | `UTC` |
 | `PUID` | User ID (Linux) | `1000` |
 | `PGID` | Group ID (Linux) | `100` |
+| `GEMINI_API_KEY` | Optional key for AI chapter generation | *(unset)* |
 
 ### Set JWT Secret
 

@@ -12,6 +12,8 @@ KDO Video Tagger is a self-hosted video metadata tagger for organizing video pro
 - **Shot Type Analysis**: Classify shots as Wide (WS), Medium (MS), Close-Up (CU), or Extreme Close-Up (ECU)
 - **Color Palette**: Extract dominant colors from videos
 - **GPS Location**: Read GPS coordinates from video metadata
+- **Transcription**: Local speech-to-text via faster-whisper (free, on-device)
+- **YouTube Chapters**: AI-generated chapter plans from visual index + transcript (optional, needs a Gemini API key)
 - **Star Ratings**: Rate videos 1-5 stars
 - **Custom Tags**: Add and manage tags per video
 - **Collections**: Group videos into collections
@@ -27,13 +29,13 @@ KDO Video Tagger is a self-hosted video metadata tagger for organizing video pro
 
 ```bash
 # Pull the image
-docker pull ghcr.io/omrik/kdo-vtg:main
+docker pull ghcr.io/omrik/kdo-vtg:latest
 
 # Run with your video folder mounted
 docker run -d -p 8080:8000 \
   -v /path/to/your/videos:/media:ro \
   -v kdo-vtg-config:/app/config \
-  ghcr.io/omrik/kdo-vtg:main
+  ghcr.io/omrik/kdo-vtg:latest
 
 # Access at http://localhost:8080
 ```
@@ -45,7 +47,7 @@ docker run -d -p 8080:8000 \
   -v /path/to/videos:/media:ro \
   -v kdo-vtg-config:/app/config \
   --name kdo-vtg \
-  ghcr.io/omrik/kdo-vtg:main
+  ghcr.io/omrik/kdo-vtg:latest
 ```
 
 ### First Run
@@ -100,7 +102,48 @@ Click on any video to open the details modal showing:
 - Shot type breakdown (if analyzed)
 - Color palette (if extracted)
 - Detected scenes (if analyzed)
+- Transcript (if transcribed)
+- Chapters (if generated)
 - Tags
+
+### Transcription (local, free)
+
+1. Open a video's details modal
+2. Click **Transcribe**
+3. The audio is transcribed locally on your server with [`faster-whisper`](https://github.com/SYSTRAN/faster-whisper) — no upload, no API key needed
+
+Notes:
+- Choose the **Whisper model** in Settings → AI & Transcription. `base` is the fast default; `large-v3` is the most accurate but much slower on low-end NAS hardware.
+- Videos with no audio track, or silent videos, return an empty result — that's expected.
+- Transcript segments appear in the video's details panel.
+
+### YouTube Chapters (optional, needs a Gemini API key)
+
+1. Open a video's details modal
+2. Click **Generate chapters**
+3. The visual index (scene cuts, YOLO tags, shot types) plus the transcript get sent to Google
+   Gemini and returned as timestamped chapter titles (e.g. `00:00 Intro`, `01:24 Interview`, `12:40 Wrap-up`)
+
+Notes:
+- This is the **only** feature that contacts an external service. Everything else runs locally.
+- Requires your own API key, set in Settings → AI & Transcription (or the `GEMINI_API_KEY`
+  environment variable). It is stored server-side, never committed, and masked in the UI.
+- Chapters need a transcript first — if the clip has no speech, generation returns an empty result.
+- Videos that belong to the same **Project** are passed to Gemini as `SERIES_CONTEXT`, so episode
+  titles stay consistent in style.
+
+### Settings Tab
+
+The **Settings** tab is where you manage the application:
+
+- **Account** — change your display name and password
+- **AI & Transcription** — Gemini API key (masked in the UI), Gemini model, Whisper model
+- **Scan Defaults** — default analysis options for new scans (object/scene/shot/color, sample
+  interval, create-by-tag). These pre-fill the Scan panel.
+- **Media Root** — the in-container path where your videos live (default `/media`). Change it and
+  the Folders browser re-points automatically.
+- **Database** — export/import/reset the database
+- **About** — version, links, sponsorship
 
 ### Organizing Videos
 
@@ -164,6 +207,10 @@ The application provides a REST API at `/api/`:
 - `GET /api/folders` - List media folders
 - `GET /api/videos` - List all videos
 - `POST /api/scan` - Start a scan job
+- `POST /api/videos/{id}/transcribe` - Transcribe a video locally (faster-whisper)
+- `POST /api/videos/{id}/chapters` - Generate Gemini chapters for a video
+- `GET /api/settings` / `POST /api/settings` - Read/update app settings
+- `GET /api/health` - Health and capability check (includes `gemini_configured`)
 - `GET /api/collections` - List collections
 - `POST /api/export/csv` - Export as CSV
 - `POST /api/export/edl` - Export as EDL

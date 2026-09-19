@@ -2240,6 +2240,9 @@ function App() {
                     <a href="https://github.com/omrik/kdo-vtg/blob/main/docs/USAGE.md" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '4px 12px' }}>
                       Documentation
                     </a>
+                    <a href="https://buymeacoffee.com/omrik" target="_blank" rel="noopener noreferrer" className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '4px 12px', background: '#ffdd00', color: '#111', borderColor: '#ffdd00', fontWeight: 600 }}>
+                      Buy Me a Coffee
+                    </a>
                   </div>
                 </div>
               </div>

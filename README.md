@@ -10,6 +10,7 @@ KDO Video Tagger is a self-hosted web application that automatically extracts te
 [![Python Version](https://img.shields.io/badge/python-3.12-blue)](https://www.python.org/downloads/)
 [![Docker](https://img.shields.io/badge/docker-ready-blue.svg)](https://www.docker.com/)
 [![GitHub Release](https://img.shields.io/github/v/release/omrik/kdo-vtg)](https://github.com/omrik/kdo-vtg/releases)
+[![Sponsor](https://img.shields.io/badge/Buy%20me%20a%20coffee-ffdd00?logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/omrik)
 
 ---
 
@@ -54,6 +55,15 @@ Export clean CSV or Excel spreadsheets ready for Premiere Pro, DaVinci Resolve, 
 ---
 
 ## Quick Start
+
+**Easiest (Linux/macOS):**
+
+```bash
+curl -fsSL -o install.sh https://raw.githubusercontent.com/omrik/kdo-vtg/main/install.sh
+MEDIA_PATH=/path/to/your/videos bash install.sh
+```
+
+**Manual (any Docker host):**
 
 ```bash
 docker pull ghcr.io/omrik/kdo-vtg:latest
@@ -117,9 +127,42 @@ environment:
 
 ## Support This Project
 
-If KDO Video Tagger saves you time, consider buying me a coffee:
+KDO Video Tagger is free and open source (MIT). If it saves you hours of sorting
+through footage, a coffee is hugely appreciated — and keeps me building:
 
 [![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/omrik)
+
+---
+
+## FAQ
+
+### Does KDO Video Tagger upload my footage anywhere?
+**No.** Scanning, tagging, scene detection, object detection, color analysis, and
+transcription all run locally on your machine or NAS. The only feature that contacts
+an external service is optional **YouTube Chapters**, and only when you provide your
+own Google Gemini API key.
+
+### I get 503 when I click "Generate Chapters" — is it broken?
+No. Chapter generation needs a Gemini API key (Settings → AI & Transcription). Your
+key is stored on the server, never committed, and masked in the UI.
+
+### How do I update?
+Pull the latest image and restart:
+
+```bash
+docker pull ghcr.io/omrik/kdo-vtg:latest
+docker compose up -d
+```
+
+Your config and database live in the `config` volume and are preserved.
+
+### Which NAS devices are supported?
+Anything that runs Docker: UGREEN (DX and DH4300 Plus), Synology, QNAP, unRAID,
+TrueNAS, TerraMaster, or any Linux host. Requires an x86/amd64 CPU.
+
+### Is it really free?
+Yes — MIT licensed, no accounts, no per-seat fees. Optional add-ons (like Gemini
+chapters) use your own API keys.
 
 ---
 
