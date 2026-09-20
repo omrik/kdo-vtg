@@ -91,7 +91,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: ${{ env.DOCKERHUB_IMAGE }}
-          short-description: Self-hosted video tagger: scene detection, Whisper transcript, CSV/Excel/EDL export.
+          short-description: "Self-hosted video tagger: scene detection, Whisper transcript, CSV/Excel/EDL export."
           readme-filepath: README.md
 
       - name: Set container package description
