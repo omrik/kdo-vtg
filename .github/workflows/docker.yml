@@ -75,9 +75,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          attest: |
-            type=provenance,mode=max
-            type=sbom
+          provenance: mode=max
+          sbom: true
           labels: |
             ${{ steps.meta.outputs.labels }}
             org.opencontainers.image.description=Self-hosted video metadata tagger: scan media folders, tag clips, detect scenes/objects/colors, local Whisper transcription, and Gemini chapter planning.
