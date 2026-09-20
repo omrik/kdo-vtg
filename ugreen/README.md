@@ -66,5 +66,8 @@ arm64_com.omrik.docker.kdovideotagger_<version>.upk
   exactly that port.
 - Container data lives under the app's data dir; users export/re-import the DB
   (Settings → Database) to migrate from a manual Docker install.
+- The container runs as a non-root user (uid **1000**); the config data dir
+  (`/app/config`, mapped from `./data`) must be writable by uid 1000 — App
+  Center creates it with suitable perms on install.
 - `GEMINI_API_KEY` is optional; without it everything except Gemini chapters
   keeps working.

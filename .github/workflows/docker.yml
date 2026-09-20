@@ -131,6 +131,7 @@ jobs:
       - name: Boot smoke test (arm64, qemu)
         run: |
           mkdir -p /tmp/kdo-smoke
+          chmod 777 /tmp/kdo-smoke
           docker run -d --rm --platform linux/arm64 \
             --name kdo-smoke \
             -v /tmp/kdo-smoke:/app/config \
