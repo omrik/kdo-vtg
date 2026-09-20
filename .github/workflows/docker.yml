@@ -93,6 +93,7 @@ jobs:
           repository: ${{ env.DOCKERHUB_IMAGE }}
           short-description: "Self-hosted video tagger: scene detection, Whisper transcript, CSV/Excel/EDL export."
           readme-filepath: README.md
+          enable-url-completion: true
 
       - name: Set container package description
         if: env.PKG_PAT != ''

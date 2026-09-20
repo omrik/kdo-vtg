@@ -1,6 +1,6 @@
 # KDO Video Tagger
 
-<img src="frontend/src/assets/logo.png" alt="KDO Video Tagger" width="300">
+<img src="https://raw.githubusercontent.com/omrik/kdo-vtg/main/frontend/src/assets/logo.png" alt="KDO Video Tagger" width="300">
 
 **Organize, tag, and manage your video projects with AI-powered metadata extraction.**
 
@@ -32,7 +32,7 @@ Export clean CSV or Excel spreadsheets ready for Premiere Pro, DaVinci Resolve, 
 
 ---
 
-<img src="docs/screenshots/modal.png" alt="Video Modal" width="800">
+<img src="https://raw.githubusercontent.com/omrik/kdo-vtg/main/docs/screenshots/modal.png" alt="Video Modal" width="800">
 
 ---
 
