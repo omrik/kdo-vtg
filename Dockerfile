@@ -39,13 +39,18 @@ LABEL org.opencontainers.image.url="https://github.com/omrik/kdo-vtg"
 LABEL org.opencontainers.image.documentation="https://github.com/omrik/kdo-vtg/blob/main/README.md"
 LABEL org.opencontainers.image.licenses="MIT"
 
-RUN mkdir -p /app/config /app/media
+RUN useradd -m -u 1000 kdo \
+    && mkdir -p /app/config /app/media \
+    && chown -R kdo:kdo /app/config /app/media
 
 ENV PYTHONUNBUFFERED=1
 ENV HOST=0.0.0.0
 ENV PORT=8000
 ENV DATABASE_URL=sqlite:///./config/kdo-vtg.db
 ENV PYTHONPATH=/app
+ENV HOME=/home/kdo
+
+USER kdo
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')" || exit 1
