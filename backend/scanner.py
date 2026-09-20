@@ -44,8 +44,36 @@ class VideoScanner:
     def init_yolo(self):
         if self.yolo_enabled and not self._yolo_initialized:
             from ultralytics import YOLO
-            self.model = YOLO(self.model_name)
+            weights = self._resolve_model_path()
+            self.model = YOLO(weights)
             self._yolo_initialized = True
+
+    def _resolve_model_path(self) -> str:
+        model_name = os.path.basename(self.model_name) or "yolov8n.pt"
+        weights_dir = os.environ.get("YOLO_WEIGHTS_DIR") or "/opt/kdo-vtg/models"
+        writable_dir = os.path.join(os.environ.get("HOME") or ".", ".kdo-vtg", "models")
+        os.makedirs(writable_dir, exist_ok=True)
+
+        for candidate in (
+            self.model_name,
+            os.path.join(weights_dir, model_name),
+            os.path.join(writable_dir, model_name),
+        ):
+            if candidate and os.path.exists(candidate):
+                return candidate
+
+        return self._download_weights(model_name, writable_dir)
+
+    def _download_weights(self, model_name: str, dest_dir: str) -> str:
+        import urllib.request
+
+        dest = os.path.join(dest_dir, model_name)
+        if os.path.exists(dest):
+            return dest
+        url = f"https://github.com/ultralytics/assets/releases/download/v8.4.0/{model_name}"
+        print(f"Downloading YOLO weights: {url}")
+        urllib.request.urlretrieve(url, dest)
+        return dest
 
     def extract_metadata_ffprobe(self, filepath: str) -> dict:
         try:
@@ -637,21 +665,35 @@ class VideoScanner:
         self.scan_job.total_files = len(video_files)
         self.db.commit()
 
+        succeeded = 0
+        failed = 0
+        last_error = None
+
         for filepath in video_files:
             if self.scan_job.status == "cancelled":
                 break
-            
+
             try:
                 self.scan_video(filepath)
+                succeeded += 1
             except Exception as e:
+                failed += 1
+                last_error = str(e)
                 print(f"Error scanning {filepath}: {e}")
                 self.db.rollback()
                 self.scan_job.processed_files += 1
                 self.db.commit()
 
-        self.scan_job.status = "completed"
-        self.scan_job.completed_at = datetime.datetime.utcnow()
-        self.db.commit()
+        if self.scan_job.status != "cancelled":
+            if succeeded == 0 and failed > 0:
+                self.scan_job.status = "failed"
+                self.scan_job.error_message = f"All {failed} file(s) failed to scan. Last error: {last_error}"
+            else:
+                if failed > 0:
+                    self.scan_job.error_message = f"{failed} of {len(video_files)} file(s) failed to scan. Last error: {last_error}"
+                self.scan_job.status = "completed"
+            self.scan_job.completed_at = datetime.datetime.utcnow()
+            self.db.commit()
 
 
 def get_folder_videos(db: Session, folder_path: str) -> list[Video]:

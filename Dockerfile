@@ -40,7 +40,8 @@ LABEL org.opencontainers.image.documentation="https://github.com/omrik/kdo-vtg/b
 LABEL org.opencontainers.image.licenses="MIT"
 
 RUN useradd -m -u 1000 kdo \
-    && mkdir -p /app/config /app/media \
+    && mkdir -p /app/config /app/media /opt/kdo-vtg/models \
+    && python -c "import urllib.request; urllib.request.urlretrieve('https://github.com/ultralytics/assets/releases/download/v8.4.0/yolov8n.pt', '/opt/kdo-vtg/models/yolov8n.pt')" \
     && chown -R kdo:kdo /app/config /app/media
 
 ENV PYTHONUNBUFFERED=1
@@ -49,6 +50,7 @@ ENV PORT=8000
 ENV DATABASE_URL=sqlite:///./config/kdo-vtg.db
 ENV PYTHONPATH=/app
 ENV HOME=/home/kdo
+ENV YOLO_WEIGHTS_DIR=/opt/kdo-vtg/models
 
 USER kdo
 
