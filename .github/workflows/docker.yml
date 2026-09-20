@@ -86,17 +86,16 @@ jobs:
             ${{ steps.meta.outputs.annotations }}
 
       - name: Sync Docker Hub description
-        uses: chko/docker-pushrm-action@v2
+        uses: peter-evans/dockerhub-description@v4
         with:
-          image: ${{ env.DOCKERHUB_IMAGE }}
-          description: >-
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ env.DOCKERHUB_IMAGE }}
+          short-description: >-
             Self-hosted video metadata tagger: scan media folders, tag clips,
             detect scenes/objects/colors, local Whisper transcription, and
             Gemini chapter planning. Export CSV/Excel and EDL.
-          README_FILEPATH: README.md
-        env:
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-          DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+          readme-filepath: README.md
 
       - name: Set container package description
         if: env.PKG_PAT != ''
