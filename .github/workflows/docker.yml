@@ -86,15 +86,12 @@ jobs:
             ${{ steps.meta.outputs.annotations }}
 
       - name: Sync Docker Hub description
-        uses: peter-evans/dockerhub-description@v4
+        uses: peter-evans/dockerhub-description@v5
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: ${{ env.DOCKERHUB_IMAGE }}
-          short-description: >-
-            Self-hosted video metadata tagger: scan media folders, tag clips,
-            detect scenes/objects/colors, local Whisper transcription, and
-            Gemini chapter planning. Export CSV/Excel and EDL.
+          short-description: Self-hosted video tagger: scene detection, Whisper transcript, CSV/Excel/EDL export.
           readme-filepath: README.md
 
       - name: Set container package description
