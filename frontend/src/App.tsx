@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Video,
   FolderOpen,
@@ -33,8 +33,31 @@ import Logo from './assets/logo.png'
 
 const API_BASE = import.meta.env.VITE_API_URL || ''
 
+const TAB_IDS: Tab[] = ['folders', 'scan', 'results', 'collections', 'projects', 'duplicates', 'settings']
+
 function App() {
   const [activeTab, setActiveTab] = useState<Tab>('folders')
+
+  useEffect(() => {
+    const readHash = () => {
+      const t = window.location.hash.replace(/^#/, '') as Tab
+      if (TAB_IDS.includes(t)) setActiveTab(t)
+    }
+    readHash()
+    window.addEventListener('hashchange', readHash)
+    return () => window.removeEventListener('hashchange', readHash)
+  }, [])
+
+  const firstHashWrite = useRef(true)
+  useEffect(() => {
+    if (firstHashWrite.current) {
+      firstHashWrite.current = false
+      return
+    }
+    const base = window.location.pathname + window.location.search
+    const hash = activeTab === 'folders' ? '' : `#${activeTab}`
+    window.history.replaceState(null, '', hash ? base + hash : base)
+  }, [activeTab])
   const [folders, setFolders] = useState<Folder[]>([])
   const [currentPath, setCurrentPath] = useState<string>('/media')
   const [contents, setContents] = useState<ContentItem[]>([])

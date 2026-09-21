@@ -158,12 +158,12 @@ export function VideoModal({
           </div>
         )}
 
-        {video.shot_types && (
+        {video.shot_types && video.shot_types.counts && Object.keys(video.shot_types.counts).length > 0 && (
           <div className="form-group">
             <label>Shot Types</label>
             <div style={{ padding: '0.75rem', background: 'var(--bg-tertiary)', borderRadius: '6px' }}>
               <div style={{ fontSize: '0.8rem', marginBottom: '0.5rem' }}>
-                Dominant: <strong>{video.shot_types.dominant_shot}</strong>
+                Dominant: <strong>{video.shot_types.dominant_shot || '-'}</strong>
               </div>
               <ShotTypeBar counts={video.shot_types.counts} total={video.shot_types.total_analyzed} />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
