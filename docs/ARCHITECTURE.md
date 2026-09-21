@@ -149,11 +149,11 @@ already present. Tracks `skipped_files` on the ScanJob.
 
 ```mermaid
 flowchart LR
-    A[GET /api/videos/{id} data] --> B[build_prompt]
-    B --> C[generate_chapters]
-    C --> D[Gemini generateContent]
-    D --> E[filter_scene_cuts + parse]
-    E --> F[[GET chapters / save]]
+    A["GET /api/videos/{id} data"] --> B["build_prompt"]
+    B --> C["generate_chapters"]
+    C --> D["Gemini generateContent"]
+    D --> E["filter_scene_cuts + parse"]
+    E --> F[["GET chapters / save"]]
 ```
 
 | Function | Purpose |
@@ -265,7 +265,7 @@ flowchart LR
         I[build-push ghcr.io/omrik/kdo-vtg:latest]
     end
     subgraph NAS
-        C[docker run -d -p 8080:8000 ...ashamd arm]
+        C["docker run -d -p 8080:8000 (amd64 + arm64)"]
     end
     L --> B --> D
     P --> W --> I
