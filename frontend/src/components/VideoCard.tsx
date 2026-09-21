@@ -1,5 +1,6 @@
 import { Image, Star, MapPin } from 'lucide-react'
 import type { VideoItem } from '../types'
+import { thumbnailUrl } from '../api'
 
 interface VideoCardProps {
   video: VideoItem
@@ -9,7 +10,6 @@ interface VideoCardProps {
   onSelect: (e: React.MouseEvent) => void
   onRate: (videoId: number, rating: number) => void
   formatDuration: (seconds: number | null) => string
-  API_BASE: string
 }
 
 export function VideoCard({ 
@@ -20,7 +20,6 @@ export function VideoCard({
   onSelect,
   onRate,
   formatDuration,
-  API_BASE 
 }: VideoCardProps) {
   if (viewMode === 'list') {
     return (
@@ -39,7 +38,7 @@ export function VideoCard({
         <td onClick={onClick} style={{ cursor: 'pointer' }}>
           {video.thumbnail ? (
             <img 
-              src={`${API_BASE}/api/thumbnails/${video.id}`} 
+              src={thumbnailUrl(video)} 
               alt="" 
               style={{ width: '60px', height: '34px', objectFit: 'cover', borderRadius: '4px' }}
             />
@@ -76,7 +75,7 @@ export function VideoCard({
       />
       <div className="video-thumbnail" style={{ aspectRatio: thumbnailAspect(video.resolution) }}>
         {video.thumbnail ? (
-          <img src={`${API_BASE}/api/thumbnails/${video.id}`} alt={video.filename} />
+          <img src={thumbnailUrl(video)} alt={video.filename} />
         ) : (
           <div className="no-thumbnail">
             <Image size={32} />

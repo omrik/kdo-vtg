@@ -318,4 +318,9 @@ export const downloadBlob = (blob: Blob, filename: string) => {
   document.body.removeChild(a)
 }
 
+export const thumbnailUrl = (video: { id: number; thumbnail: string | null }) => {
+  const key = (video.thumbnail || '').split('/').pop() || '1'
+  return `${API_BASE}/api/thumbnails/${video.id}?v=${encodeURIComponent(key)}`
+}
+
 export { API_BASE }

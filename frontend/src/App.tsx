@@ -29,6 +29,7 @@ import {
 } from 'lucide-react'
 import { VideoModal } from './components/VideoModal'
 import { VideoListView } from './components/VideoListView'
+import { thumbnailUrl } from './api'
 import type { User, Folder, ContentItem, VideoItem, Collection, Project, DuplicateInfo, ScanJob, Stats, Tab, AppSettings } from './types'
 import Logo from './assets/logo.png'
 
@@ -1750,7 +1751,7 @@ function App() {
                       />
                       <div className="video-thumbnail">
                         {video.thumbnail ? (
-                          <img src={`${API_BASE}/api/thumbnails/${video.id}`} alt={video.filename} />
+                          <img src={thumbnailUrl(video)} alt={video.filename} />
                         ) : (
                           <div className="no-thumbnail">
                             <Image size={20} />
@@ -1858,7 +1859,7 @@ function App() {
                            <td>
                             {video.thumbnail ? (
                               <img 
-                                src={`${API_BASE}/api/thumbnails/${video.id}`} 
+                                src={thumbnailUrl(video)} 
                                 alt="" 
                                 style={{ width: '60px', height: '34px', objectFit: 'cover', borderRadius: '4px', cursor: 'pointer' }}
                                 onClick={() => openVideoModal(video)}
@@ -1956,7 +1957,6 @@ function App() {
                 onViewModeChange={setViewMode}
                 onVideoClick={openVideoModal}
                 formatDuration={formatDuration}
-                API_BASE={API_BASE}
               />
             ) : collections.length === 0 ? (
               <div className="empty-state">
@@ -2031,7 +2031,6 @@ function App() {
                 onViewModeChange={setViewMode}
                 onVideoClick={openVideoModal}
                 formatDuration={formatDuration}
-                API_BASE={API_BASE}
               />
             ) : projects.length === 0 ? (
               <div className="empty-state">

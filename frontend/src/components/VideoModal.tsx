@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { X, Star, MapPin, Sparkles, Loader } from 'lucide-react'
 import type { VideoItem, Project } from '../types'
-import { api as apiClient, API_BASE } from '../api'
+import { api as apiClient, thumbnailUrl } from '../api'
 
 interface VideoModalProps {
   video: VideoItem
@@ -94,7 +94,7 @@ export function VideoModal({
         {video.thumbnail && (
           <div style={{ marginBottom: '1rem', borderRadius: '8px', overflow: 'hidden', background: 'var(--bg-tertiary)' }}>
             <img 
-              src={`${API_BASE}/api/thumbnails/${video.id}`} 
+              src={thumbnailUrl(video)} 
               alt={video.filename}
               style={{ width: '100%', maxHeight: '200px', objectFit: 'contain' }}
             />

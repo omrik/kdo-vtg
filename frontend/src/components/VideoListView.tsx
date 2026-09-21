@@ -1,5 +1,6 @@
 import { Grid, List, Image, MapPin } from 'lucide-react'
 import type { VideoItem } from '../types'
+import { thumbnailUrl } from '../api'
 
 interface VideoListViewProps {
   videos: VideoItem[]
@@ -7,7 +8,6 @@ interface VideoListViewProps {
   onViewModeChange: (mode: 'grid' | 'list') => void
   onVideoClick: (video: VideoItem) => void
   formatDuration: (seconds: number | null) => string
-  API_BASE: string
   showAddToButtons?: boolean
   onAddToCollection?: (videoId: number) => void
   onAddToProject?: (videoId: number) => void
@@ -19,7 +19,6 @@ export function VideoListView({
   onViewModeChange,
   onVideoClick,
   formatDuration,
-  API_BASE,
   showAddToButtons = false,
   onAddToCollection,
   onAddToProject,
@@ -56,7 +55,7 @@ export function VideoListView({
             <div key={video.id} className="video-card" onClick={() => onVideoClick(video)}>
               <div className="video-thumbnail" style={{ aspectRatio: thumbnailAspect(video.resolution) }}>
                 {video.thumbnail ? (
-                  <img src={`${API_BASE}/api/thumbnails/${video.id}`} alt={video.filename} />
+                  <img src={thumbnailUrl(video)} alt={video.filename} />
                 ) : (
                   <div className="no-thumbnail"><Image size={32} /></div>
                 )}
