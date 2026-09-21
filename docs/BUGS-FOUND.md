@@ -10,6 +10,23 @@ Found while validating the in-flight `only_missing` backfill feature and thumbna
 fix on the `stage` branch. Deployed to localhost:8080 (`kdo-vtg`) and scratch
 container on 8091 (`kdo-vtg-yolofix`) for verification.
 
+### BUG-006 — Sub-second videos fail thumbnail extraction (seek past EOF)
+
+**Impact:** Very short clips (< 1 s, e.g. extracted timelapse frames) never got a
+thumbnail — ffmpeg failed on every `extract_thumbnail` call because it seeks to
+second 1, which is past the end of the file.
+
+**Root cause:** `extract_thumbnail` computed
+`timestamp = max(1, int(duration * 0.1))`, forcing a 1-second minimum seek even
+for clips shorter than 1 s. Seeks beyond the file end make ffmpeg exit non-zero.
+
+**Fix:** Changed to `timestamp = max(0, int(duration * 0.1))` — a zero seek lands
+on the first frame, which is within any valid file.
+
+**Verified:** Backfill script regenerated the 5 previously-failing clips
+(`IMG_9005.MOV`, `IMG_9094.MOV`, 3× `dji_mimo_*_timelapse.mp4`); all 108 videos
+now have a thumbnail.
+
 ### BUG-005 — Vertical-video thumbnails stretched + unstable thumbnail filenames
 
 **Impact:** "Mixed thumbnails" on the Results grid — portrait/vertical clips were

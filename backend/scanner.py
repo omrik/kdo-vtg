@@ -380,7 +380,7 @@ class VideoScanner:
     def extract_thumbnail(self, filepath: str, duration: float) -> Optional[str]:
         """Extract thumbnail at 10% of video duration."""
         try:
-            timestamp = max(1, int(duration * 0.1))
+            timestamp = max(0, int(duration * 0.1))
             output_dir = "/app/config/thumbnails"
             os.makedirs(output_dir, exist_ok=True)
             
