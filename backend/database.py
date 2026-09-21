@@ -74,6 +74,7 @@ class ScanJob(Base):
     status = Column(String, default="pending")
     total_files = Column(Integer, default=0)
     processed_files = Column(Integer, default=0)
+    skipped_files = Column(Integer, default=0)
     yolo_enabled = Column(Boolean, default=False)
     sample_interval = Column(Integer, default=10)
     started_at = Column(DateTime, nullable=True)
@@ -178,6 +179,21 @@ def migrate_db():
                     print(f"Added column: {col_name}")
                 except Exception as e:
                     print(f"Could not add column {col_name}: {e}")
+
+        # Migrate scan_jobs table columns
+        scan_result = conn.execute(text("PRAGMA table_info(scan_jobs)"))
+        scan_columns = [row[1] for row in scan_result]
+        scan_migrations = [
+            ('skipped_files', 'INTEGER DEFAULT 0'),
+        ]
+        
+        for col_name, col_type in scan_migrations:
+            if col_name not in scan_columns:
+                try:
+                    conn.execute(text(f"ALTER TABLE scan_jobs ADD COLUMN {col_name} {col_type}"))
+                    print(f"Added scan_jobs column: {col_name}")
+                except Exception as e:
+                    print(f"Could not add scan_jobs column {col_name}: {e}")
         
         # Create collection_videos table if not exists
         conn.execute(text("""

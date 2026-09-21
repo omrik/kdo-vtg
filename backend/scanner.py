@@ -3,6 +3,7 @@ import json
 import cv2
 import ffmpeg
 import datetime
+import hashlib
 import re
 import numpy as np
 from pathlib import Path
@@ -25,7 +26,8 @@ class VideoScanner:
         color_palette_enabled: bool = False,
         gps_extraction_enabled: bool = True,
         transcribe_enabled: bool = False,
-        whisper_model: str = "base"
+        whisper_model: str = "base",
+        only_missing: bool = False,
     ):
         self.db = db
         self.scan_job = scan_job
@@ -38,6 +40,7 @@ class VideoScanner:
         self.gps_extraction_enabled = gps_extraction_enabled
         self.transcribe_enabled = transcribe_enabled
         self.whisper_model = whisper_model
+        self.only_missing = only_missing
         self.model = None
         self._yolo_initialized = False
 
@@ -381,15 +384,22 @@ class VideoScanner:
             output_dir = "/app/config/thumbnails"
             os.makedirs(output_dir, exist_ok=True)
             
-            filename_hash = str(abs(hash(filepath)))
+            filename_hash = hashlib.md5(filepath.encode('utf-8')).hexdigest()[:16]
             thumbnail_path = os.path.join(output_dir, f"{filename_hash}.jpg")
             
             if os.path.exists(thumbnail_path):
                 return thumbnail_path
             
             (
-                ffmpeg.input(filepath, ss=timestamp)
-                .output(thumbnail_path, vframes=1, format='image2', vcodec='mjpeg', s='320x180')
+                ffmpeg
+                .input(filepath, ss=timestamp)
+                .output(
+                    thumbnail_path,
+                    vframes=1,
+                    format='image2',
+                    vcodec='mjpeg',
+                    vf="scale=320:180:force_original_aspect_ratio=decrease,pad=320:180:(ow-iw)/2:(oh-ih)/2:color=black",
+                )
                 .overwrite_output()
                 .run(capture_stdout=True, capture_stderr=True)
             )
@@ -730,6 +740,25 @@ class VideoScanner:
         
         return video
 
+    def _missing_analyses(self, video: Video) -> list:
+        """Which enabled analyses are still missing on an existing video.
+
+        Used by backfill scans (only_missing=True): an existing video is
+        skipped when none of the requested analyses are missing.
+        """
+        missing = []
+        if self.shot_type_enabled and not video.shot_types:
+            missing.append("shot_type")
+        if self.yolo_enabled and not video.yolo_enabled and not video.tags:
+            missing.append("yolo")
+        if self.scene_detection_enabled and not video.scene_detection_enabled and not video.scenes:
+            missing.append("scene")
+        if self.color_palette_enabled and not video.color_palette:
+            missing.append("color_palette")
+        if self.transcribe_enabled and not video.transcript:
+            missing.append("transcript")
+        return missing
+
     def scan_folder(self, folder_path: str):
         self.scan_job.status = "running"
         self.scan_job.started_at = datetime.datetime.utcnow()
@@ -747,12 +776,21 @@ class VideoScanner:
         self.db.commit()
 
         succeeded = 0
+        skipped = 0
         failed = 0
         last_error = None
 
         for filepath in video_files:
             if self.scan_job.status == "cancelled":
                 break
+
+            if self.only_missing:
+                existing = self.db.query(Video).filter(Video.filepath == filepath).first()
+                if existing is not None and not self._missing_analyses(existing):
+                    skipped += 1
+                    self.scan_job.skipped_files = skipped
+                    self.db.commit()
+                    continue
 
             try:
                 self.scan_video(filepath)
@@ -766,7 +804,7 @@ class VideoScanner:
                 self.db.commit()
 
         if self.scan_job.status != "cancelled":
-            if succeeded == 0 and failed > 0:
+            if succeeded == 0 and skipped == 0 and failed > 0:
                 self.scan_job.status = "failed"
                 self.scan_job.error_message = f"All {failed} file(s) failed to scan. Last error: {last_error}"
             else:

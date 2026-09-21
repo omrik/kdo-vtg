@@ -76,6 +76,7 @@ function App() {
     sample_interval: number
     model_name: string
     afterScan: 'none' | 'createByTag'
+    only_missing: boolean
   }>({
     yolo_enabled: false,
     scene_detection_enabled: false,
@@ -84,6 +85,7 @@ function App() {
     sample_interval: 10,
     model_name: 'yolov8n.pt',
     afterScan: 'none',
+    only_missing: false,
   })
 
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null)
@@ -473,6 +475,7 @@ function App() {
         sample_interval: scanDefaultsForm.sample_interval,
         model_name: 'yolov8n.pt',
         afterScan: scanDefaultsForm.after_scan === 'createByTag' ? 'createByTag' : 'none',
+        only_missing: false,
       })
     } catch (err) {
       setError('Failed to save scan defaults')
@@ -1425,6 +1428,18 @@ function App() {
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Auto-create collections</div>
                       </div>
                     </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
+                      <input
+                        type="checkbox"
+                        checked={scanSettings.only_missing}
+                        onChange={(e) => setScanSettings({ ...scanSettings, only_missing: e.target.checked })}
+                        style={{ width: '18px', height: '18px' }}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 500 }}>Scan Only Missing</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Skip clips that already have all selected analysis</div>
+                      </div>
+                    </label>
                   </div>
                 </div>
 
@@ -1518,8 +1533,20 @@ function App() {
                 <div className="form-group" style={{ margin: 0, minWidth: '140px' }}>
                   <label style={{ fontSize: '0.7rem' }}>Folder</label>
                   <select 
-                    value={filters.folder} 
-                    onChange={(e) => setFilters({...filters, folder: e.target.value})}
+                    value={selectedFolder || ''} 
+                    onChange={(e) => {
+                      const path = e.target.value
+                      setSelectedFolder(path || null)
+                      setFilters({ ...filters, folder: path })
+                      if (path) {
+                        fetchFolderContents(path)
+                        fetchVideos(path)
+                      } else {
+                        setCurrentPath('/media')
+                        fetchFolderContents('/media')
+                        fetchVideos()
+                      }
+                    }}
                   >
                     <option value="">All folders</option>
                     {folders.map(f => (
@@ -1620,7 +1647,10 @@ function App() {
                   <button className="btn btn-secondary" onClick={() => {
                     setFilters({ folder: '', resolution: '', camera: '', minDuration: '', maxDuration: '', search: '', sortBy: '', sortOrder: 'desc' })
                     setSelectedTag(null)
-                    fetchVideos(selectedFolder || undefined, true)
+                    setSelectedFolder(null)
+                    setCurrentPath('/media')
+                    fetchFolderContents('/media')
+                    fetchVideos()
                   }}>
                     <X size={14} />
                     Clear
@@ -1718,12 +1748,12 @@ function App() {
                         onChange={(e) => { e.stopPropagation(); toggleVideoSelection(video.id) }}
                         style={{ position: 'absolute', top: '8px', left: '8px', zIndex: 2 }}
                       />
-                      <div className="video-thumbnail" style={{ aspectRatio: thumbnailAspect(video.resolution) }}>
+                      <div className="video-thumbnail">
                         {video.thumbnail ? (
                           <img src={`${API_BASE}/api/thumbnails/${video.id}`} alt={video.filename} />
                         ) : (
                           <div className="no-thumbnail">
-                            <Image size={32} />
+                            <Image size={20} />
                           </div>
                         )}
                         <div className="video-duration">{formatDuration(video.duration)}</div>
@@ -2607,9 +2637,3 @@ function App() {
 }
 
 export default App
-
-function thumbnailAspect(resolution?: string | null) {
-  const m = /^(\d+)\s*[x×]\s*(\d+)$/i.exec((resolution || '').trim())
-  if (m && Number(m[2]) > 0) return `${m[1]} / ${m[2]}`
-  return '16 / 9'
-}

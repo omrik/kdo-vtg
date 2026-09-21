@@ -220,6 +220,7 @@ class ScanRequest(BaseModel):
     color_palette_enabled: bool = False
     transcribe_enabled: bool = False
     whisper_model: str = "base"
+    only_missing: bool = False
 
 
 class TranscribeRequest(BaseModel):
@@ -278,6 +279,7 @@ class ScanJobResponse(BaseModel):
     status: str
     total_files: int
     processed_files: int
+    skipped_files: int
     yolo_enabled: bool
     sample_interval: int
     started_at: Optional[str]
@@ -323,7 +325,7 @@ class ProjectResponse(BaseModel):
         from_attributes = True
 
 
-def scan_task(db_url: str, scan_id: int, folder_path: str, yolo_enabled: bool, sample_interval: int, model_name: str, scene_detection_enabled: bool = False, shot_type_enabled: bool = False, color_palette_enabled: bool = False, transcribe_enabled: bool = False, whisper_model: str = "base"):
+def scan_task(db_url: str, scan_id: int, folder_path: str, yolo_enabled: bool, sample_interval: int, model_name: str, scene_detection_enabled: bool = False, shot_type_enabled: bool = False, color_palette_enabled: bool = False, transcribe_enabled: bool = False, whisper_model: str = "base", only_missing: bool = False):
     from backend.database import SessionLocal
     
     db = SessionLocal()
@@ -340,7 +342,8 @@ def scan_task(db_url: str, scan_id: int, folder_path: str, yolo_enabled: bool, s
                 shot_type_enabled=shot_type_enabled,
                 color_palette_enabled=color_palette_enabled,
                 transcribe_enabled=transcribe_enabled,
-                whisper_model=whisper_model
+                whisper_model=whisper_model,
+                only_missing=only_missing
             )
             scanner.scan_folder(folder_path)
     finally:
@@ -491,6 +494,7 @@ def start_scan(
         request.color_palette_enabled,
         request.transcribe_enabled,
         whisper_model,
+        request.only_missing,
     )
     
     return {
@@ -520,6 +524,7 @@ def get_scan_status(
         status=scan.status,
         total_files=scan.total_files,
         processed_files=scan.processed_files,
+        skipped_files=scan.skipped_files or 0,
         yolo_enabled=scan.yolo_enabled,
         sample_interval=scan.sample_interval,
         started_at=scan.started_at.isoformat() if scan.started_at else None,
