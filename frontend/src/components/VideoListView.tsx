@@ -53,7 +53,7 @@ export function VideoListView({
         <div className="video-grid">
           {videos.map((video) => (
             <div key={video.id} className="video-card" onClick={() => onVideoClick(video)}>
-              <div className="video-thumbnail" style={{ aspectRatio: thumbnailAspect(video.resolution) }}>
+              <div className="video-thumbnail">
                 {video.thumbnail ? (
                   <img src={thumbnailUrl(video)} alt={video.filename} />
                 ) : (
@@ -141,10 +141,4 @@ export function VideoListView({
 )}
       </>
   )
-}
-
-function thumbnailAspect(resolution?: string | null) {
-  const m = /^(\d+)\s*[x×]\s*(\d+)$/i.exec((resolution || '').trim())
-  if (m && Number(m[2]) > 0) return `${m[1]} / ${m[2]}`
-  return '16 / 9'
 }

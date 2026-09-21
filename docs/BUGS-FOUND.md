@@ -4,6 +4,34 @@ _Cumulative log of significant bugs discovered and resolved. Add new entries at 
 
 ---
 
+## 2026-09-21 — Stage branch: project/collection grid distorts vertical videos
+
+Found after promoting BUG-005/006 to `main` and re-verifying on `localhost:8080`.
+
+### BUG-007 — Project/collection grid shows vertical-video thumbnails distorted
+
+**Impact:** In the Projects and Collections tabs (grid view), vertical videos
+render as a tiny centered strip inside a tall portrait box instead of the proper
+letterboxed 16:9 thumbnail. The main Videos tab looked fine.
+
+**Root cause:** The BUG-005 thumbnail fix removed the per-resolution
+`aspectRatio: thumbnailAspect(video.resolution)` inline style from the main
+Videos grid, but the same leftover existed in the shared `VideoListView` (used
+by Projects and Collections) and in the unused `VideoCard` component. For a
+vertical video (e.g. `2160x3840`) that computed a `0.5625` portrait ratio, so
+the CSS 16:9 letterboxed thumbnail (`object-fit: contain`) was squeezed into a
+narrow tall box.
+
+**Fix:** Removed the inline `thumbnailAspect()` override (and the now-unused
+function) from `VideoListView` grid and `VideoCard`, letting the CSS
+`.video-card .video-thumbnail` (16/9, `object-fit: contain`) apply everywhere —
+matching the main Videos grid.
+
+**Verified:** `tsc && vite build` clean; deployed to localhost:8080; Projects and
+Collections grids show letterboxed thumbnails like the Videos tab.
+
+---
+
 ## 2026-09-21 — Stage branch: backfill / thumbnail bugs (5 found, all fixed)
 
 Found while validating the in-flight `only_missing` backfill feature and thumbnail

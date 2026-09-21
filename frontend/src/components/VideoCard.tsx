@@ -73,7 +73,7 @@ export function VideoCard({
         onClick={onSelect}
         style={{ position: 'absolute', top: '8px', left: '8px', zIndex: 2 }}
       />
-      <div className="video-thumbnail" style={{ aspectRatio: thumbnailAspect(video.resolution) }}>
+      <div className="video-thumbnail">
         {video.thumbnail ? (
           <img src={thumbnailUrl(video)} alt={video.filename} />
         ) : (
@@ -105,12 +105,6 @@ export function VideoCard({
       </div>
     </div>
   )
-}
-
-function thumbnailAspect(resolution?: string | null) {
-  const m = /^(\d+)\s*[x×]\s*(\d+)$/i.exec((resolution || '').trim())
-  if (m && Number(m[2]) > 0) return `${m[1]} / ${m[2]}`
-  return '16 / 9'
 }
 
 export function StarRating({ rating, onRate, size = 16 }: { rating: number | null; onRate: (r: number) => void; size?: number }) {
