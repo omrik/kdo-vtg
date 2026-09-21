@@ -1,296 +1,156 @@
-# KDO Video Tagger - Development Plan
+# KDO Video Tagger — Developer Runbook
 
-## Development Strategy
-
-### Development Environment Setup
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Development Flow                           │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  Local Development → GitHub → Container Registry → Target    │
-│         ↓                                    ↓              │
-│    localhost:8080                    NAS (Docker) or PC/Mac  │
-│                                                             │
-│  Testing:                                                   │
-│  1. Local Dev (npm/uvicorn)                               │
-│  2. Local Docker (PC/Mac/NAS)                             │
-│  3. Dockhand UI (NAS production)                           │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### Testing Strategy
-
-| Stage | Environment | When | Purpose |
-|-------|-------------|------|---------|
-| **1. Local Dev** | `localhost:8080` | Every commit | Fast iteration |
-| **2. Local Docker** | Docker on PC/Mac | After each feature | Production-like test |
-| **3. NAS Docker** | SSH to NAS | Daily/Before merge | Real hardware |
-| **4. Dockhand** | NAS Dockhand UI | Before release | Production deployment |
+_How to build, run, test, and ship changes — and where the project currently
+stands. Read `ARCHITECTURE.md` first for the full map. This is the "local loop"
+reference so any session can pick up mid-air._
 
 ---
 
-## Deployment Options
+## 1. Where things run
 
-### Option 1: NAS (Recommended for centralized storage)
-- UGREEN NAS DXP4800 Plus or similar
-- Run via Dockhand or Docker CLI
-- Access videos from NAS storage
+| Target | Image / tag | Port | Purpose |
+|---|---|---|---|
+| Live on NAS (`kdo-vtg`) | `ghcr.io/omrik/kdo-vtg:latest` | 8080 | production instance, admin/admin123 |
+| Local test (light) | `kdo-vtg-yolofix` | 8091 | 3-clip smoke: `/media` + DJI test files |
+| Local build during work | `kdo-vtg-yolofix` (rebuilt) | 8091 | validate before committing |
 
-### Option 2: Local PC/Mac (For video editing workflow)
-- Run as local Docker container
-- Scan videos from local hard drives
-- Perfect for Premiere Pro/DaVinci Resolve project prep
+Live mount for scan backfill = NAS `/media` (read-only `.ro`).
+Local scratch DB/config lives under `~/Documents/opencode`.
 
----
-
-## Development Phases
-
-### Phase 1: Foundation (Current)
-- [x] Basic folder navigation
-- [x] Metadata extraction (ffprobe)
-- [x] YOLO object detection
-- [x] Web UI (React)
-- [x] Export (CSV/Excel)
-- [x] Docker container
-- [x] CI/CD pipeline
-- [x] User authentication
-
-### Phase 2: Video Editor Essentials
-- [x] **Thumbnails** - Extract frame at 10% of video
-- [x] **Grid view** - Visual browsing with thumbnails
-- [x] **Custom tags** - User-defined tags per video
-- [x] **Collections** - Group videos into projects
-- [x] **Advanced filters** - Resolution, duration, date range
-
-### Phase 3: Analysis Features (UI Display)
-- [x] **Scene detection UI** - Display detected scenes in video detail modal
-- [x] **Shot type UI** - Show WS/MS/CU/ECU breakdown per video
-- [x] **Color palette UI** - Display extracted colors as visual swatches
-- [x] **GPS timeline UI** - Show location on map or coordinates
-
-### Phase 3: Analysis Backend (Completed)
-- [x] **Scene detection** - Identify shot boundaries (backend done)
-- [x] **Shot type analysis** - WS/MS/CU/ECU detection via YOLO (backend done)
-- [x] **Color palette** - Extract dominant colors (backend done)
-- [x] **GPS timeline** - Parse and visualize locations (backend done)
-
-### Phase 4: Production Features
-- [x] **EDL export** - For Premiere/DaVinci Resolve
-- [x] **Shot list generator** - PDF export
-- [x] **Batch operations** - Bulk tag/edit
-- [x] **Rating system** - Stars per video
-- [x] **Duplicate detection** - Hash-based
+### Live container details (NAS)
+- Image `ghcr.io/omrik/kdo-vtg:latest`, network `kdo-vtg_default`,
+  restart `unless-stopped`, mounts media RO + `/media`; config volume preserved
+  across recreates.
+- Health check: `GET /api/health` → 200. Watch scan progress at `/api/scan/{id}`.
 
 ---
 
-## Local Development Workflow
+## 2. The build → test → ship loop
 
-### Prerequisites
-```bash
-# Install dependencies
-cd backend && pip install -e .
-cd frontend && npm install
+Everything for a new feature lands on **`stage`** and is validated locally first.
+Push to `main` (the live image) **only after the user approves**.
+
+```mermaid
+flowchart LR
+    A[make edits on stage branch] --> B[npm run build (frontend)]
+    B --> C[docker build -t kdo-vtg-yolofix .]
+    C --> D[docker cp dist -> live/test container]
+    D --> E[Playwright + pytest verify]
+    E --> F{approved by user?}
+    F -- no --> A
+    F -- yes --> G[git push origin HEAD:stage + branch -f main]
+    G --> H[CI green ≈26min]
+    H --> I[docker pull + recreate live container]
 ```
 
-### Run Locally (without Docker)
-```bash
-# Terminal 1: Backend
-cd backend
-uvicorn backend.main:app --reload --port 8000
-
-# Terminal 2: Frontend (dev mode with proxy)
-cd frontend
-npm run dev
-# Access at http://localhost:5173
-```
-
----
-
-## Docker Deployment
-
-### Run with Docker (Local PC/Mac)
-
-Perfect for scanning local video files for video editing projects:
+### Commands
 
 ```bash
-# Build locally
-docker build -t kdo-vtg:local .
+# 1. Build frontend (Vite → frontend/dist)
+cd frontend && npm run build && cd ..
 
-# Run - mount your video folders
-docker run -d -p 8080:8000 \
-  -v /path/to/your/videos:/media:ro \
-  -v kdo-vtg-config:/app/config \
-  --name kdo-vtg-local \
-  kdo-vtg:local
+# 2. Build the Docker image locally
+docker build -t kdo-vtg-yolofix .
 
-# Access at http://localhost:8080
+# 3. Ship the new static bundle (no full redeploy needed for UI-only changes)
+docker cp frontend/dist/. kdo-vtg:/app/static/
+docker restart kdo-vtg          # pick up new main.py/scanner.py if backend changed
 
-# View logs
-docker logs -f kdo-vtg-local
+# 4. Iterate: rerun steps 1+3 on changes, restart container
 
-# Stop
-docker stop kdo-vtg-local && docker rm kdo-vtg-local
+# 5. Verify with tests (POSTMAN-less, needs the container on BASE_URL)
+BASE_URL=http://localhost:8080 pytest tests/ -q
 ```
 
-### Run Pre-built Image (PC/Mac/NAS)
+### Backend-only quick test (no container)
+Fast to sanity-check imports/logic without Docker:
 
 ```bash
-# Pull latest image
-docker pull ghcr.io/omrik/kdo-vtg:latest
-
-# Run on PC/Mac
-docker run -d -p 8080:8000 \
-  -v /path/to/your/videos:/media:ro \
-  -v kdo-vtg-config:/app/config \
-  --name kdo-vtg \
-  ghcr.io/omrik/kdo-vtg:latest
-
-# Access at http://localhost:8080
-```
-
-### Testing on NAS via SSH
-
-```bash
-# SSH to NAS
-ssh user@<nas-ip>
-
-# Pull latest image
-docker pull ghcr.io/omrik/kdo-vtg:latest
-
-# Run with volume mounts (adjust path for your NAS)
-docker run -d -p 8080:8000 \
-  -v /volume1/media:/media:ro \
-  -v kdo-vtg-config:/app/config \
-  --name kdo-vtg \
-  ghcr.io/omrik/kdo-vtg:latest
-
-# Check logs
-docker logs -f kdo-vtg
-
-# Cleanup
-docker stop kdo-vtg && docker rm kdo-vtg
+cd kdo-vtg
+python3 -c "from backend.database import migrate_db; migrate_db()"
+pytest backend/tests or tests/ 2>/dev/null
 ```
 
 ---
 
-## Dockhand API Control
+## 3. The backfill / incremental-scan feature (CURRENT IN-FLIGHT)
 
-### Current Dockhand Status
-Dockhand (v1.0.24) is primarily a **web UI** for Docker management. It has:
-- ✅ Git integration for deployment
-- ✅ Container management (start/stop/restart)
-- ✅ Compose stack management
-- ✅ File browser
-- ✅ Webhooks for CI/CD triggers
-- ❌ **No public REST API** for programmatic control
+> Status: implemented in `backend/scanner.py` + API (`only_missing`) but **not
+> committed/pushed yet** — it is the active `stage` feature being validated.
 
-### Dockhand Capabilities
-| Feature | Available | Notes |
-|---------|-----------|-------|
-| Git deploy | ✅ | Pull from GitHub |
-| Container control | ✅ | Via web UI |
-| Logs viewer | ✅ | Via web UI |
-| File browser | ✅ | Via web UI |
-| Webhooks | ✅ | Trigger on events |
-| REST API | ❌ | Not available |
+### Goal
+Re-analyze only the videos in the library that are **missing** result data, so
+existing scans don't overwrite good data or waste hours re-YOLO-ing the same
+108 files. Compatible with **GPS backfill** (45/108 already had GPS).
 
-### Direct Docker Control via SSH
+### How it works
+- New `ScanRequest`: `only_missing: bool = False`.
+- `VideoScanner.__init__` gains `only_missing` + `_missing_analyses(video)` helper
+  that returns which enabled analyses are absent on a given video (shot_types,
+  scenes, yolo tags, color palette, transcript…).
+- `scan_folder(..., only_missing=True)` skips each video where the enabled
+  analyses already exist → `skipped_files` counter + `ScanJob.skipped_files`
+  column persist the count (DB migration already added).
+- API exposes it, and frontend Scan tab will get a "Scan only missing analysis"
+  toggle (P1).
 
-Since Dockhand doesn't have a REST API, control Docker directly via SSH:
-
-```bash
-# SSH and run commands on NAS
-ssh user@<nas-ip> "docker ps"
-
-# Redeploy container
-ssh user@<nas-ip> "docker pull ghcr.io/omrik/kdo-vtg:latest && \
-  docker stop kdo-vtg || true && \
-  docker rm kdo-vtg || true && \
-  docker run -d -p 8080:8000 \
-    -v /volume1/media:/media:ro \
-    -v kdo-vtg-config:/app/config \
-    --name kdo-vtg \
-    ghcr.io/omrik/kdo-vtg:latest"
-```
-
-### Recommended: Git-based Deploy via Dockhand
-
-Dockhand supports **Git integration** for automatic deployments:
-
-1. In Dockhand → Settings → Git
-2. Connect GitHub repo
-3. Enable auto-deploy on push
-
-This way: `git push` → Dockhand auto-builds & deploys.
-
----
-
-## CI/CD Pipeline
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    GitHub Actions                           │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  Push to main/stage                                         │
-│       ↓                                                    │
-│  ┌─────────────────────────────────────┐                  │
-│  │ 1. Build Frontend (npm)              │                  │
-│  │ 2. Build Docker Image                 │                  │
-│  │ 3. Push to ghcr.io                  │                  │
-│  │ 4. Create image tags                 │                  │
-│  └─────────────────────────────────────┘                  │
-│       ↓                                                    │
-│  Deploy via: Dockhand, SSH, or pull manually               │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A[POST /api/scan with only_missing=true] --> B[scan_task bg]
+    B --> C{for each video file}
+    C -->|already has all enabled analyses| D[skip → skipped_files++]
+    C -->|missing some| E[scan_video → fill analyses]
+    E --> F[processed_files++]
+    D --> G[progress update / commit]
+    F --> G
 ```
 
 ---
 
-## Testing Checklist
+## 4. Scanning modes (the 4 analysis layers)
 
-### Before Each Feature Merge
-- [ ] Local Docker test passes
-- [ ] Metadata extraction works (ffprobe)
-- [ ] UI renders correctly
-- [ ] Export functions work
+| Layer | Backend fn | Enabled by | Output saved on `Video` |
+|---|---|---|---|
+| YOLO objects | `detect_objects_yolo` → `detect_objects_yolo` | `yolo_enabled` | `tags` (JSON) |
+| Scene cuts | `detect_scenes` | `scene_detection_enabled` | `scenes` (JSON) |
+| Shot types | `detect_shot_types` | `shot_type_enabled` | `shot_types` (JSON) |
+| Color palette | `extract_color_palette` | `color_palette_enabled` | `color_palette` (JSON) |
+| GPS | `extract_gps_data` | `gps_extraction_enabled` | `gps_data` (JSON) |
+| Transcript | `transcribe_video` | `transcribe_enabled` | `transcript` (JSON) |
+| Chapters | `generate_chapters` (Gemini) | repo `chapters.py` | `chapters` (JSON) |
 
-### Before Release
-- [ ] Test on NAS Docker (via SSH)
-- [ ] Test via Dockhand deployment
-- [ ] Check logs for errors
-- [ ] Verify volume mounts work
-
-### Performance Testing
-- [ ] Scan 100+ videos without memory issues
-- [ ] UI responsive with 1000+ videos in DB
-- [ ] Export handles large datasets
+`only_missing=True` scans skip a video if **all enabled layers above already
+produced non-empty output** for it.
 
 ---
 
-## Quick Commands Reference
+## 5. Current open work (carry-forward — read before continuing)
 
-```bash
-# --- Local Development ---
-cd ~/Documents/kdo-vtg
-npm run dev --prefix frontend  # Frontend dev
-cd backend && uvicorn main:app --reload  # Backend dev
+1. **Backfill (`only_missing`)** — code written in `scanner.py` + `main.py` +
+   DB migration; NOT committed. Next: wire into Scan tab UI toggle + test the
+   skipped counter, then local-validate against the live NAS library (108 videos,
+   most missing shot_types). Get approval before pushing.
+2. **UGREEN App Store submission** — `ugdev.sig` still not received; `.upk` build
+   artifacts exist. Ping UGREEN when key arrives; no code work needed.
+3. **README / growth** — done + pushed. Screenshots exist in `docs/…`.
 
-# --- Local Docker (PC/Mac) ---
-docker build -t kdo-vtg:dev .
-docker run -p 8080:8000 -v /path/to/your/videos:/media:ro kdo-vtg:dev
+### Repo hygiene gotchas
+- `ugreen/project.yaml` + `docs/screenshots/*` are **pre-existing unrelated
+  changes** — do not bundle them into feature commits.
+- Before committing: `git status`; keep diffs focused; seed admin via
+  `from backend.database import SessionLocal, User` + `passlib.hash.bcrypt`
+  (resident pattern — do NOT use `backend.models`).
+- `push HEAD:stage && branch -f main` only after user says go.
 
-# --- NAS SSH Commands ---
-ssh user@<nas-ip> "docker pull ghcr.io/omrik/kdo-vtg:latest"
-ssh user@<nas-ip> "docker logs kdo-vtg --tail 100"
+---
 
-# --- Git Workflow ---
-git checkout -b feature/new-feature
-git add . && git commit -m 'feat: description'
-git push origin feature/new-feature
-# Create PR → Merge to main → CI builds → Deploy
-```
+## 6. Useful scripts
+- `scripts/build-and-test.sh` — docker build + full pytest (local)
+
+---
+
+## 7. Docker Hub / NAS promo (production gate)
+- CI pushes amd64 image `ghcr.io/omrik/kdo-vtg:latest` from `Dockerfile` when
+  PRs merge to `main` (see `.github/workflows/docker.yml`). To update the live
+  NAS container after a green CI: `docker pull ...:latest` + `docker restart`.
+- `docker-compose.prod.yml` wires the prod mount + GEMINI_API_KEY passthrough.

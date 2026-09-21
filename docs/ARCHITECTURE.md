@@ -1,232 +1,298 @@
-# KDO Video Tagger - Frontend Architecture
+# KDO Video Tagger — Architecture & Function Reference
 
-## Current State
+_Self-hosted video indexing + analysis app. FastAPI backend, SQLAlchemy/SQLite,
+React (Vite) frontend, runs in Docker on self-hosted NAS media. All analysis is
+local (YOLO, SceneCut, Whisper); only YouTube-chapter planning calls Gemini._
 
-- **App.tsx**: 2375 lines (monolithic)
-- **Components**: Only `VideoModal.tsx` and `VideoCard.tsx` exist
-- **Types**: All defined inline in App.tsx
-
-## Refactoring Principles
-
-1. **MOVE code, don't rewrite** - Copy exact JSX and logic
-2. **Preserve all functionality** - Zero changes to behavior
-3. **Incremental** - One change at a time, verify after each
-4. **No UI changes** - Keep existing styles and classes
+> Repo root: `/Users/omrik/Documents/kdo-vtg` · Branch `stage` holds new work;
+> `main` is the promoted/live image. Latest shipped versions are in `VERSION`.
 
 ---
 
-## Phase 1: Types (Safe - just moving declarations)
+## 1. High-level overview
 
-### Goal
-Move all TypeScript interfaces from App.tsx to `frontend/src/types/index.ts`
+```mermaid
+flowchart LR
+    subgraph Browser
+        UI[React SPA\nfrontend/dist served as static]
+    end
 
-### Interfaces to Move
-```typescript
-// Currently in App.tsx lines 31-151
-User, Folder, ContentItem, VideoItem, Scene, ScanJob, Stats, 
-Collection, Project, DuplicateInfo, ShotTypeInfo, ColorInfo, GpsInfo
+    subgraph Container
+        API[FastAPI backend\nbackend/main.py]
+        SCAN["VideoScanner\nbackend/scanner.py"]
+        CH[Chapter engine\nbackend/chapters.py]
+        DB[(SQLite\ndb.sqlite3)]
+        FS[/media, /app/config/]
+    end
+
+    UI -->|REST /api/*\nJSON| API
+    API -->|scan_folder bg task| SCAN
+    SCAN --> CH
+    CH -->|Gemini HTTPS| GEM[Gemini API\nneeds key]
+    SCAN --> DB
+    DB --> API
+    API -->|thumbnails/transcripts| UI
+    FS --> SCAN
 ```
 
-### Result
-- `App.tsx`: Remove interface declarations (~120 lines)
-- `types/index.ts`: Add all interfaces
-- `VideoModal.tsx`: Update import from App.tsx to types/index.ts
-
-### Verification
-```bash
-npm run build
-# Should compile without errors
-```
+**Feature flow:** Folders → pick folder → POST`/api/scan` (async) → `VideoScanner`
+walks folder, extracts metadata per video (ffprobe + exiftool), and optionally runs
+YOLO object detection, scene detection, shot-type classification, color palette,
+GPS extraction, and Whisper transcription → rows in `videos` table. Chapters are
+planned on demand via `POST /api/videos/{id}/chapters` (Gemini).
 
 ---
 
-## Phase 2: API Hooks (Safe - extract data fetching)
-
-### Goal
-Extract async functions into custom hooks for cleaner code organization
-
-### New File: `frontend/src/hooks/useApi.ts`
-```typescript
-// Extract these functions from App.tsx:
-- fetchFolders()
-- fetchFolderContents()
-- fetchVideos()
-- fetchAllTags()
-- fetchStats()
-- fetchScanStatus()
-- fetchCollections()
-- fetchProjects()
-- fetchDuplicates()
-- fetchCollectionVideos()
-- fetchProjectVideos()
-- addToCollection()
-- addToProject()
-- createCollection()
-- createProject()
-- deleteCollection()
-- deleteProject()
-```
-
-### Pattern
-```typescript
-export function useApi(token: string | null, API_BASE: string) {
-  return {
-    async fetchVideos(params?) { ... },
-    async fetchCollections() { ... },
-    // etc
-  }
-}
-```
-
-### Result
-- App.tsx: Import from `useApi` hook
-- Each function remains identical
-
----
-
-## Phase 3: Shared Video Components (MERGE duplicates)
-
-### Goal
-Replace 3 identical video grid/list implementations with one reusable component
-
-### Problem Identified
-Lines 1779-1837 (Collections) and 1920-1978 (Projects) have **nearly identical** code for displaying videos in grid/list view.
-
-### New File: `frontend/src/components/VideoListView.tsx`
-
-```typescript
-interface VideoListViewProps {
-  videos: VideoItem[]
-  viewMode: 'grid' | 'list'
-  onViewModeChange: (mode: 'grid' | 'list') => void
-  onVideoClick: (video: VideoItem) => void
-  formatDuration: (seconds: number | null) => string
-  API_BASE: string
-}
-```
-
-### Components to Create/Update
-
-1. **VideoGrid** - Reuse existing from VideoCard.tsx patterns
-2. **VideoList** - Table view of videos
-3. **VideoListView** - Wrapper with view mode toggle
-
-### Files Affected
-- `components/VideoListView.tsx` (NEW)
-- Update `App.tsx` lines 1779-1837 (Collections)
-- Update `App.tsx` lines 1920-1978 (Projects)
-- Update `App.tsx` lines 1590-1725 (Results) - same pattern
-
----
-
-## Phase 4: Extract Modals (Safe - just moving JSX)
-
-### Goal
-Move inline modal JSX to separate component files
-
-### Modals to Extract
-
-1. **LoginModal** (App.tsx lines 2191-2235)
-   - Props: `isFirstRun, isRegister, loginForm, onLogin, onCancel, onToggleRegister`
-   - File: `components/LoginModal.tsx`
-
-2. **NewCollectionModal** (App.tsx lines 2237-2260)
-   - Props: `name, onChange, onCreate, onCancel`
-   - File: `components/NewCollectionModal.tsx`
-
-3. **NewProjectModal** (App.tsx lines 2262-2285)
-   - Props: `name, onChange, onCreate, onCancel`
-   - File: `components/NewProjectModal.tsx`
-
-4. **AddToModal** (App.tsx lines 2301-2370)
-   - Props: `type, collections, projects, onSelect, onCancel, onRefresh`
-   - File: `components/AddToModal.tsx`
-
----
-
-## Phase 5: Main Layout Components
-
-### Header (Extract inline JSX)
-- Move from App.tsx lines 1039-1071
-- File: `components/Header.tsx`
-- Props: `user, activeTab, tabs, onTabChange, onLogout, onLogin`
-
-### Tab Navigation
-- Currently embedded in Header
-- Extract to `components/TabNav.tsx` if needed
-
----
-
-## Final Structure
+## 2. Repository layout
 
 ```
-frontend/src/
-├── App.tsx                    # ~400 lines (state + composition)
-├── types/
-│   └── index.ts               # All interfaces (moved from App.tsx)
-├── hooks/
-│   └── useApi.ts              # API functions (extracted)
-├── components/
-│   ├── VideoModal.tsx         # Existing
-│   ├── VideoCard.tsx          # Existing
-│   ├── VideoListView.tsx      # NEW - shared video grid/list
-│   ├── Header.tsx             # NEW - app header + nav
-│   ├── LoginModal.tsx         # NEW - extracted
-│   ├── NewCollectionModal.tsx  # NEW - extracted
-│   ├── NewProjectModal.tsx    # NEW - extracted
-│   └── AddToModal.tsx         # NEW - extracted
-└── index.css                  # Unchanged
+kdo-vtg/
+├── backend/                 # FastAPI app (singledir package)
+│   ├── main.py              # All API routes (FastAPI app)  ~1750 lines
+│   ├── scanner.py           # VideoScanner: metadata, YOLO, scenes, shots, colors, GPS, Whisper
+│   ├── chapters.py          # Gemini chapter planning (prompt build + HTTP call)
+│   ├── database.py          # SQLAlchemy models (Video, ScanJob, Folder, User, Collections…)
+│   └── settings.py          # Settings keys + defaults + settings_payload()
+├── frontend/
+│   ├── src/
+│   │   ├── App.tsx          # Root SPA: tabs, state, scan flow, modals  ~2600 lines
+│   │   ├── api/index.ts     # Typed HTTP client for every API route
+│   │   ├── types/index.ts   # VideoItem, ScanJob, Folder, Collection, Project…
+│   │   └── components/      # VideoCard, VideoListView, VideoModal
+│   └── dist/                # Built static assets (served by backend)
+├── tests/                   # pytest API tests
+├── scripts/                 # build/test helpers
+├── docker/                  # docker-compose.prod + Docker Hub compose
+├── docker-compose.yml       # thin wrapper for NAS compose include
+├── Dockerfile               # Builds backend image, serves frontend/dist
+├── ugreen/                  # UGREEN App Store packaging
+└── .github/workflows/       # CI
 ```
 
 ---
 
-## Implementation Order
+## 3. Backend modules
 
-1. **Phase 1**: Types → ✅ COMPLETE
-2. **Phase 2**: API Hooks → ✅ CREATED (not integrated)
-3. **Phase 3**: VideoListView → ✅ CREATED (not integrated)
-4. **Phase 4**: Modals → PENDING
-5. **Phase 5**: Integrate hooks into App.tsx → PENDING
+### 3.1 `backend/main.py` — REST API (FastAPI)
 
-## Current State
+All endpoints require a valid bearer token (HTTPBearer) except health/version/auth.
 
-- `App.tsx`: 2122 lines (reduced from 2375, -253 lines)
-- `types/index.ts`: All interfaces moved ✅
-- `hooks/useApi.ts`: All API functions extracted, ready to use
-- `components/VideoListView.tsx`: Integrated in Collections and Projects ✅
+| HTTP / Route | Handler | Purpose |
+|---|---|---|
+| GET `/api/health` | `health_check` | liveness for Docker HEALTHCHECK |
+| GET `/api/version` | `get_app_version` | returns version from `VERSION` |
+| GET `/` | `get_setup_status` | bootstrap: is auth configured? |
+| POST `/api/auth/register` | `register` | create first admin |
+| POST `/api/auth/login` | `login` | issue JWT |
+| GET `/api/auth/me` | `get_me` | current user |
+| POST `/api/auth/change-password` | `change_password` | change own password |
+| GET `/api/settings` | `read_settings` | all settings + computed config |
+| POST `/api/settings` | `update_settings` | persist settings |
+| GET `/api/folders` | `list_folders` | top-level media folders |
+| GET `/api/folders/{path:path}` | `get_folder_contents` | folder listing w/ video counts |
+| POST `/api/scan` | `start_scan` | enqueue scan job (bg task) |
+| POST `/api/scan/{scan_id}/chapters` | — | generate chapters for a job |
+| GET `/api/scan/{scan_id}` | `get_scan_status` | poll job progress |
+| POST `/api/scan/{scan_id}/cancel` | `cancel_scan_job` | cancel running scan |
+| GET `/api/videos` | `get_videos` | list/filter/sort/search videos |
+| GET `/api/videos/{id}` | `get_video` | single video detail |
+| GET/POST `/api/videos/{id}/tags` | tag ops | add/list tags |
+| DELETE `/api/videos/{id}/tags/{tag}` | remove tag | |
+| POST `/api/videos/{id}/scenes` | `detect_video_scenes` | run scene detection on one video |
+| GET/POST `/api/videos/{id}/transcript` | transcribe | on-demand Whisper |
+| GET/POST `/api/videos/{id}/chapters` | chapters | plan chapters via Gemini |
+| POST `/api/videos/batch/*` | batch ops | tag/delete/add-to-collection/project |
+| GET `/api/videos/duplicates` | `find_duplicates` | same-content detection |
+| GET `/api/stats`, `/api/tags` | stats | dashboard aggregates |
+| POST `/api/export/csv&#124;excel&#124;edl&#124;pdf` | export | graded exports |
+| CRUD `/api/collections`, `/api/projects` | collection/project mgmt | organize videos |
 
-## Integration Complete
-
-- Collections view: VideoListView integrated ✅
-- Projects view: VideoListView integrated ✅
-- Results view: Not refactored (has unique features: selection checkboxes, inline tag removal, FPS column)
-
-## Future Improvements (Not Done)
-- Results view refactoring (complex due to selection features)
-- Integrate useApi hook into App.tsx
-- Extract modals to separate components
+#### Scan flow internals
+- `ScanRequest` Pydantic body: `folder_path`, `yolo_enabled`, `sample_interval`,
+  `model_name`, plus feature toggles `scene_detection_enabled`,
+  `shot_type_enabled`, `color_palette_enabled`, `transcribe_enabled`, `whisper_model`.
+- `start_scan` creates a `ScanJob` (status `pending`) and schedules
+  `scan_task(url, scan_id, folder, …)` via FastAPI `BackgroundTasks`.
+- `scan_task` spawns a `VideoScanner`, calls `scan_folder(folder_path)`.
+- `get_scan_status` returns progress + counts; frontend polls every 2 s.
 
 ---
 
-## Verification Checklist After Each Phase
+### 3.2 `backend/scanner.py` — `VideoScanner` class
 
-- [ ] `npm run build` passes
-- [ ] Login/logout works
-- [ ] Folder browsing works
-- [ ] Scan starts and shows progress
-- [ ] Results show videos with filters
-- [ ] Collections CRUD works
-- [ ] Projects CRUD works
-- [ ] Duplicates detection works
-- [ ] Settings (export/import/reset) works
-- [ ] Video modal opens and edits work
+Constructor toggles: `yolo_enabled`, `sample_interval`, `model_name`
+(scene/shot/color/gps/transcribe enabled flags).
+
+| Method | Purpose |
+|---|---|
+| `extract_metadata_ffprobe(filepath)` | ffprobe → {resolution, width/height, duration, fps, codec, bitrate} |
+| `extract_metadata_exiftool(filepath)` | exiftool JSON → camera_model, create_date, GPS, color_profile |
+| `extract_gps_data(filepath, exiftool_data)` | GPS from exiftool keys (ISO6709 / DJI `location` / DMS), falls back to ffprobe tags |
+| `extract_camera_type(filepath, filename)` | detect `DJI`/`GoPro`/`iPhone`/`Insta360` from encoder + name |
+| `extract_date_from_filename` / `extract_metadata` | derive creation date from filename patterns |
+| `extract_thumbnail(filepath, duration)` | 320×180 JPEG via ffmpeg at 10% mark |
+| `detect_objects_yolo(filepath)` | YOLOv8 (`yolov8n.pt`) over sampled frames → tag set |
+| `detect_shot_types(filepath)` | frame diffing → counts per WS/MS/CU/ECU → dominant shot |
+| `detect_scenes(filepath)` | frame-difference scene cuts → `[{timestamp, start_time, end_time,…}]` |
+| `extract_color_palette(filepath)` | k-means dominant colors (5) |
+| `transcribe_video(filepath)` | faster-whisper base CPU → timestamped segments |
+| `scan_video(filepath)` | pipelines all enabled analyses into a `Video` row |
+| `scan_folder(folder_path)` | walks folder; per-video try/except; tracks progress + failures |
+
+`scanner.scan_folder` skip logic: when `only_missing=True` (backfill scans), a video
+is skipped if `_missing_analyses(video)` returns empty — i.e. all enabled analyses
+already present. Tracks `skipped_files` on the ScanJob.
 
 ---
 
-## What NOT to Change
+### 3.3 `backend/chapters.py` — Gemini chapter planner
 
-- CSS classes and styles
-- Component structure/ordering in JSX
-- Function logic (just move)
-- State management approach
-- API calls (same endpoints, same params)
+```mermaid
+flowchart LR
+    A[GET /api/videos/{id} data] --> B[build_prompt]
+    B --> C[generate_chapters]
+    C --> D[Gemini generateContent]
+    D --> E[filter_scene_cuts + parse]
+    E --> F[[GET chapters / save]]
+```
+
+| Function | Purpose |
+|---|---|
+| `filter_scene_cuts(scenes, min_duration, min_gap, max_cuts)` | drop noisy <2 s cuts, de-dupe <5 s closes |
+| `build_prompt(video, transcript, series_context, extra_rules)` | assemble chapter-planning prompt |
+| `generate_chapters(prompt, api_key, model)` | call Gemini; return `[{time,title}]` |
+| `to_hhmmss` / `parse_timestamp` | timestamp helpers |
+
+Uses `GEMINI_API_KEY` (settings/env). No key → clean `ValueError` → 503/400 response.
+
+---
+
+### 3.4 `backend/database.py` — models
+
+| Model | Fields (highlights) |
+|---|---|
+| `Video` | id, filename, filepath, resolution w/h, duration, fps, codec, bitrate, camera_type, color_profile, date_created, file_size, tags(JSON), thumbnail, `yolo_enabled`, scenes(JSON), `scene_detection_enabled`, shot_types(JSON), color_palette(JSON), gps_data(JSON), transcript(JSON), transcribe_enabled, chapters(JSON) |
+| `ScanJob` | id, folder_path, status, yolo_enabled, sample_interval, started/completed_at, processed_files, skipped_files, error_message |
+| `Folder` | path, name, video_count |
+| `User` | username, email, hashed_password, is_active |
+| `Collection` / `Project` | name, description, color, status (+ M2M video links) |
+| `ScanSettings` table | `key`/`value` pairs (see `settings.py`) |
+
+---
+
+### 3.5 `backend/settings.py` — keys & defaults
+
+- Media root (`media_root`), YOLO model (`model_name`), sample interval,
+  scene/shot/color enabledness, Whisper model, Gemini model + API key,
+  after-scan action. Exposed as `/api/settings` and mirrored in
+  `settings_payload()`.
+
+---
+
+## 4. Frontend
+
+### 4.1 `frontend/src/types/index.ts`
+`VideoItem` (dead fields: shot_types, scenes, tags, gps_data, rating, transcript…),
+`ScanJob`, `Folder`, `FolderContent`, `Collection`, `Project`, `Stats`,
+`ScanSettings`, `AppSettings`.
+
+### 4.2 `frontend/src/api/index.ts`
+Typed wrappers grouped by resource: `auth`, `folders`, `scan` (start/status/cancel),
+`videos`, `tags`, `stats`, `export`, `collections`, `projects`, `settings`.
+
+### 4.3 `frontend/src/components/`
+| File | Purpose |
+|---|---|
+| `VideoCard.tsx` | card thumbnail (aspect from resolution) + tags + star rating + GPS pin |
+| `VideoListView.tsx` | grid/list toggle + Results sortable/filtered view |
+| `VideoModal.tsx` | video detail (scenes, shot bars, color, GPS map, transcript, chapters) |
+
+### 4.4 `frontend/src/App.tsx` — app shell
+Tab IDs from `types`: `folders` (browse), `scan` (Scan tab), `results`, `collections`,
+`projects`, `duplicates`, `settings`. State: `selectedFolder`, `filters`, `videos`,
+`currentScan`, `stats`, auth token. `activeTab` persisted to `#hash` (no history
+pollution). Scan modal collects scanSettings toggles → `POST /api/scan`.
+
+---
+
+## 5. Analysis pipeline detail
+
+```mermaid
+sequenceDiagram
+    participant U as User (UI)
+    participant A as FastAPI
+    participant S as VideoScanner
+    participant F as ffmpeg/render
+    participant Y as YOLO
+    participant W as Whisper(faster-whisper)
+    participant G as Gemini
+
+    U->>A: POST /api/scan {folder, toggles}
+    A->>A: create ScanJob(pending)
+    A-->>U: {scan_id}
+    A->>S: scan_folder(folder) [bg]
+    loop each video
+        S->>F: ffprobe metadata + exiftool
+        S->>Y: detect_objects_yolo (if yolo)
+        S->>F: detect_scenes / shot_types / palette (if enabled)
+        S->>W: transcribe_video (if enabled)
+        S->>S: build Video row, commit
+        S-->>A: progress update
+    end
+    U->>A: GET /api/scan/{id} (poll 2s)
+    A-->>U: {processed/total, skipped}
+
+    U->>A: POST /api/videos/{id}/chapters {api_key}
+    A->>G: generate_chapters(api_key)
+    G-->>A: [{time,title}]
+    A-->>U: chapters saved
+```
+
+---
+
+## 6. Build / deploy / CI
+
+```mermaid
+flowchart LR
+    subgraph Local
+        L[backend + frontend dist]
+        B[npm run build]
+        D[docker build kdo-vtg-yolofix]
+    end
+    subgraph GitHub
+        P[push stage/main]
+        W[.github/workflows/docker.yml]
+        I[build-push ghcr.io/omrik/kdo-vtg:latest]
+    end
+    subgraph NAS
+        C[docker run -d -p 8080:8000 ...ashamd arm]
+    end
+    L --> B --> D
+    P --> W --> I
+    I --> C
+```
+
+- Model weights baked at `/opt/kdo-vtg/models/yolov8n.pt` (non-root readable), not
+  in a volume → survives container recreation.
+- `VERSION` auto-bumps on every commit via git hook.
+- GEMINI_API_KEY / faster-whisper pulled at runtime from env / settings (never baked
+  into the image).
+- CI runs pytest against a fresh container (local via `scripts/build-and-test.sh`).
+
+---
+
+## 7. Key invariants (for future work — do not break)
+
+1. **Local-only analysis.** No video bytes leave the NAS except the chapter prompt
+   (metadata only) to Gemini. Never upload raw footage.
+2. **Auth-first.** Every `/api/*` except health/version/login/setup must
+   authenticate via bearer token.
+3. **`ugreen/project.yaml` + `docs/screenshots/*` are pre-existing unrelated
+   changes** — leave them out of feature commits.
+4. **Push pattern only per user approval.** Feature work goes to `stage`; promote
+   to `main` after user says go, and repull the live container.
+5. **Don't bake secrets into the image or repo.** GEMINI_API_KEY comes from
+   compose env passthrough / Settings.
+6. **Backfill-friendly:** use `only_missing` for rescan so already-analyzed videos
+   are not reprocessed.
+</content>
