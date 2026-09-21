@@ -34,3 +34,6 @@ ugreen/rootfs_amd64/images/
 ugreen/rootfs_arm64/images/
 ugreen/build/
 ugreen/build_dir/
+
+# UGOS device authorization signature (private/device-bound)
+ugreen/*.sig
