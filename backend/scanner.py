@@ -162,46 +162,121 @@ class VideoScanner:
                     continue
         return None
 
-    def extract_gps_data(self, filepath: str) -> Optional[dict]:
-        """Extract GPS coordinates from video metadata."""
+    @staticmethod
+    def _exiftool_str(value) -> str:
+        """exiftool -json returns scalars or arrays; normalize to a string."""
+        if isinstance(value, list):
+            return str(value[0]) if value else ""
+        return str(value or "")
+
+    def extract_gps_data(self, filepath: str, exiftool_data: Optional[dict] = None) -> Optional[dict]:
+        """Extract GPS coordinates from video metadata.
+
+        Tries, in order:
+          1. exiftool GPS tags (most reliable for QuickTime/MOV/DJI/GoPro)
+          2. ffprobe format tags (QuickTime ISO 6709 / plain `location`)
+          3. ffprobe stream tags (data streams with GPS metadata)
+        """
         try:
+            if exiftool_data:
+                gps = self._gps_from_exiftool(exiftool_data)
+                if gps:
+                    return gps
+
             probe = ffmpeg.probe(filepath)
-            
-            for stream in probe.get("streams", []):
-                if stream.get("codec_type") == "data":
-                    tags = stream.get("tags", {})
-                    location = tags.get("location", "")
-                    
-                    if location:
-                        lat_match = re.match(r'([+-]?\d+\.\d+)([+-])(\d+\.\d+)([+-])(\d+\.\d+)', location)
-                        if lat_match:
-                            lat = float(lat_match.group(1)) * (1 if lat_match.group(2) == '+' else -1)
-                            lon = float(lat_match.group(3)) * (1 if lat_match.group(4) == '+' else -1)
-                            
-                            return {
-                                "latitude": lat,
-                                "longitude": lon,
-                                "altitude": float(tags.get("location/altitude", 0))
-                            }
-                    
-                    if tags.get("com.apple.quicktime.location.ISO6709"):
-                        iso6709 = tags.get("com.apple.quicktime.location.ISO6709")
-                        return self._parse_iso6709(iso6709)
-                    
-                    if tags.get("GPSLatitude") and tags.get("GPSLongitude"):
-                        lat = self._parse_gps_coord(tags.get("GPSLatitude"), tags.get("GPSLatitudeRef", "N"))
-                        lon = self._parse_gps_coord(tags.get("GPSLongitude"), tags.get("GPSLongitudeRef", "E"))
-                        if lat and lon:
-                            return {
-                                "latitude": lat,
-                                "longitude": lon,
-                                "altitude": float(tags.get("GPSAltitude", 0))
-                            }
-            
+            owners = [probe.get("format", {})] + probe.get("streams", [])
+            for owner in owners:
+                tags = owner.get("tags") or {}
+                iso6709 = tags.get("com.apple.quicktime.location.ISO6709")
+                if iso6709:
+                    return self._parse_iso6709(iso6709)
+                if tags.get("location") and not tags.get("GPSLatitude"):
+                    dji = self._parse_dji_location(str(tags.get("location", "")))
+                    if dji:
+                        return dji
+                if tags.get("GPSLatitude") and tags.get("GPSLongitude"):
+                    lat = self._parse_gps_coord(tags.get("GPSLatitude"), tags.get("GPSLatitudeRef", "N"))
+                    lon = self._parse_gps_coord(tags.get("GPSLongitude"), tags.get("GPSLongitudeRef", "E"))
+                    if lat and lon:
+                        return {
+                            "latitude": lat,
+                            "longitude": lon,
+                            "altitude": self._safe_float(tags.get("GPSAltitude")),
+                        }
             return None
         except Exception as e:
             print(f"GPS extraction error for {filepath}: {e}")
             return None
+
+    def _gps_from_exiftool(self, exiftool_data: dict) -> Optional[dict]:
+        lat = exiftool_data.get("gps_latitude") or ""
+        lon = exiftool_data.get("gps_longitude") or ""
+        if not lat or not lon:
+            return None
+        lat_ref = exiftool_data.get("gps_latitude_ref")
+        lon_ref = exiftool_data.get("gps_longitude_ref")
+        parsed_lat = self._parse_dms_direction(lat, lat_ref)
+        parsed_lon = self._parse_dms_direction(lon, lon_ref)
+        if parsed_lat is not None and parsed_lon is not None:
+            return {
+                "latitude": parsed_lat,
+                "longitude": parsed_lon,
+                "altitude": self._safe_float(exiftool_data.get("gps_altitude")),
+            }
+        position = exiftool_data.get("gps_position") or ""
+        if position and "," in position:
+            a, b = position.split(",", 1)
+            parsed_lat = self._parse_dms_direction(a.strip(), lat_ref)
+            parsed_lon = self._parse_dms_direction(b.strip(), lon_ref)
+            if parsed_lat is not None and parsed_lon is not None:
+                return {
+                    "latitude": parsed_lat,
+                    "longitude": parsed_lon,
+                    "altitude": self._safe_float(exiftool_data.get("gps_altitude")),
+                }
+        return None
+
+    @staticmethod
+    def _parse_dms_direction(value: str, ref: str) -> Optional[float]:
+        """Parse a DMS string like '45 deg 46' 24.60\" N' into decimal degrees."""
+        try:
+            if not value:
+                return None
+            nums = re.findall(r"\d+(?:\.\d+)?", value)
+            if not nums:
+                return None
+            degrees = float(nums[0])
+            minutes = float(nums[1]) if len(nums) > 1 else 0.0
+            seconds = float(nums[2]) if len(nums) > 2 else 0.0
+            decimal = degrees + minutes / 60 + seconds / 3600
+            ref = (ref or "").upper()
+            if ref in ("S", "W"):
+                decimal *= -1
+            elif ref[:1] not in ("N", "E"):
+                if value.rstrip().upper().endswith(("S", "W")):
+                    decimal *= -1
+            return round(decimal, 6)
+        except Exception:
+            return None
+
+    @staticmethod
+    def _parse_dji_location(location: str) -> Optional[dict]:
+        """Parse DJI `location` tag like '+27.715694+085.334994+123.5/1.00000/1.00000'."""
+        match = re.match(r"([+-]?\d+\.\d+)([+-]\d+\.\d+)([+-]\d+\.\d+)?", location)
+        if match:
+            return {
+                "latitude": float(match.group(1)),
+                "longitude": float(match.group(2)),
+                "altitude": float(match.group(3) or 0),
+            }
+        return None
+
+    @staticmethod
+    def _safe_float(value) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return 0
 
     def _parse_iso6709(self, iso6709: str) -> dict:
         """Parse ISO 6709 GPS coordinate string."""
@@ -287,6 +362,12 @@ class VideoScanner:
                         "megapixels": info.get("Megapixels", ""),
                         "color_primaries": info.get("ColorPrimaries", ""),
                         "transfer_chars": info.get("TransferCharacteristics", ""),
+                        "gps_latitude": self._exiftool_str(info.get("GPSLatitude")),
+                        "gps_longitude": self._exiftool_str(info.get("GPSLongitude")),
+                        "gps_latitude_ref": self._exiftool_str(info.get("GPSLatitudeRef")),
+                        "gps_longitude_ref": self._exiftool_str(info.get("GPSLongitudeRef")),
+                        "gps_position": self._exiftool_str(info.get("GPSPosition")),
+                        "gps_altitude": self._exiftool_str(info.get("GPSAltitude")),
                     }
                     return metadata
         except Exception as e:
@@ -580,7 +661,7 @@ class VideoScanner:
         scenes = self.detect_scenes(filepath) if self.scene_detection_enabled else None
         shot_types = self.detect_shot_types(filepath) if self.shot_type_enabled else None
         color_palette = self.extract_color_palette(filepath) if self.color_palette_enabled else None
-        gps_data = self.extract_gps_data(filepath) if self.gps_extraction_enabled else None
+        gps_data = self.extract_gps_data(filepath, exiftool_data) if self.gps_extraction_enabled else None
         transcript = self.transcribe_video(filepath) if self.transcribe_enabled else None
         
         duration = metadata.get("duration", 0) or 0

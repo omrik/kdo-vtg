@@ -1,4 +1,4 @@
-import { Image, Star } from 'lucide-react'
+import { Image, Star, MapPin } from 'lucide-react'
 import type { VideoItem } from '../types'
 
 interface VideoCardProps {
@@ -74,7 +74,7 @@ export function VideoCard({
         onClick={onSelect}
         style={{ position: 'absolute', top: '8px', left: '8px', zIndex: 2 }}
       />
-      <div className="video-thumbnail">
+      <div className="video-thumbnail" style={{ aspectRatio: thumbnailAspect(video.resolution) }}>
         {video.thumbnail ? (
           <img src={`${API_BASE}/api/thumbnails/${video.id}`} alt={video.filename} />
         ) : (
@@ -91,6 +91,12 @@ export function VideoCard({
         <div className="video-meta">
           {video.resolution && <span>{video.resolution}</span>}
           {video.camera_type && <span>{video.camera_type}</span>}
+          {video.gps_data && video.gps_data.latitude && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+              <MapPin size={11} />
+              {video.gps_data.longitude >= 0 ? 'E' : 'W'} / {video.gps_data.latitude >= 0 ? 'N' : 'S'}
+            </span>
+          )}
         </div>
         <div className="video-tags">
           {video.tags?.slice(0, 3).map((tag, i) => (
@@ -100,6 +106,12 @@ export function VideoCard({
       </div>
     </div>
   )
+}
+
+function thumbnailAspect(resolution?: string | null) {
+  const m = /^(\d+)\s*[x×]\s*(\d+)$/i.exec((resolution || '').trim())
+  if (m && Number(m[2]) > 0) return `${m[1]} / ${m[2]}`
+  return '16 / 9'
 }
 
 export function StarRating({ rating, onRate, size = 16 }: { rating: number | null; onRate: (r: number) => void; size?: number }) {

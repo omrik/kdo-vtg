@@ -555,6 +555,8 @@ def get_videos(
     min_duration: Optional[float] = Query(None, description="Minimum duration in seconds"),
     max_duration: Optional[float] = Query(None, description="Maximum duration in seconds"),
     search: Optional[str] = Query(None, description="Search in filename"),
+    sort_by: Optional[str] = Query(None, description="Sort field: date, folder, name, duration, newest"),
+    sort_order: Optional[str] = Query("desc", description="Sort direction: asc or desc"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -578,7 +580,22 @@ def get_videos(
     if search:
         query = query.filter(Video.filename.contains(search))
     
-    videos = query.order_by(Video.created_at.desc()).all()
+    sort_columns = {
+        "date": Video.date_created,
+        "folder": Video.filepath,
+        "name": Video.filename,
+        "duration": Video.duration,
+        "newest": Video.created_at,
+    }
+    sort_col = sort_columns.get(sort_by)
+    asc = sort_order == "asc"
+    if sort_col is not None:
+        order = sort_col.asc() if asc else sort_col.desc()
+        if sort_by == "date" and asc:
+            order = sort_col.asc().nullslast()
+        videos = query.order_by(order).all()
+    else:
+        videos = query.order_by(Video.created_at.desc()).all()
     
     if tag:
         videos = [v for v in videos if v.tags and tag in v.tags]

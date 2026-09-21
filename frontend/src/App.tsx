@@ -25,6 +25,7 @@ import {
   BriefcaseIcon,
   Star,
   Copy,
+  MapPin,
 } from 'lucide-react'
 import { VideoModal } from './components/VideoModal'
 import { VideoListView } from './components/VideoListView'
@@ -112,11 +113,14 @@ function App() {
   const [showAddToModal, setShowAddToModal] = useState<'collection' | 'project' | null>(null)
   const [addToVideoId, setAddToVideoId] = useState<number | null>(null)
   const [filters, setFilters] = useState({
+    folder: '',
     resolution: '',
     camera: '',
     minDuration: '',
     maxDuration: '',
     search: '',
+    sortBy: '',
+    sortOrder: 'desc',
   })
 
   const [showLoginModal, setShowLoginModal] = useState(false)
@@ -529,18 +533,21 @@ function App() {
     }
   }
 
-  const fetchVideos = async (folderPath?: string) => {
+  const fetchVideos = async (folderPath?: string, ignoreFilters = false) => {
     setLoading(true)
     setError(null)
     try {
       const params = new URLSearchParams()
-      if (folderPath) params.set('folder_path', folderPath)
-      if (selectedTag) params.set('tag', selectedTag)
-      if (filters.resolution) params.set('resolution', filters.resolution)
-      if (filters.camera) params.set('camera_type', filters.camera)
-      if (filters.minDuration) params.set('min_duration', filters.minDuration)
-      if (filters.maxDuration) params.set('max_duration', filters.maxDuration)
-      if (filters.search) params.set('search', filters.search)
+      const folderPathToUse = ignoreFilters ? folderPath : (filters.folder || folderPath)
+      if (folderPathToUse) params.set('folder_path', folderPathToUse)
+      if (selectedTag && !ignoreFilters) params.set('tag', selectedTag)
+      if (filters.resolution && !ignoreFilters) params.set('resolution', filters.resolution)
+      if (filters.camera && !ignoreFilters) params.set('camera_type', filters.camera)
+      if (filters.minDuration && !ignoreFilters) params.set('min_duration', filters.minDuration)
+      if (filters.maxDuration && !ignoreFilters) params.set('max_duration', filters.maxDuration)
+      if (filters.search && !ignoreFilters) params.set('search', filters.search)
+      if (filters.sortBy && !ignoreFilters) params.set('sort_by', filters.sortBy)
+      if (filters.sortOrder && !ignoreFilters) params.set('sort_order', filters.sortOrder)
       
       const url = `${API_BASE}/api/videos${params.toString() ? '?' + params.toString() : ''}`
       const res = await fetch(url, {
@@ -1508,6 +1515,18 @@ function App() {
               </div>
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem', alignItems: 'flex-end' }}>
+                <div className="form-group" style={{ margin: 0, minWidth: '140px' }}>
+                  <label style={{ fontSize: '0.7rem' }}>Folder</label>
+                  <select 
+                    value={filters.folder} 
+                    onChange={(e) => setFilters({...filters, folder: e.target.value})}
+                  >
+                    <option value="">All folders</option>
+                    {folders.map(f => (
+                      <option key={f.path} value={f.path}>{f.name}</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="form-group" style={{ margin: 0, minWidth: '120px' }}>
                   <label style={{ fontSize: '0.7rem' }}>Resolution</label>
                   <select 
@@ -1571,14 +1590,37 @@ function App() {
                     ))}
                   </select>
                 </div>
+                <div className="form-group" style={{ margin: 0, minWidth: '130px' }}>
+                  <label style={{ fontSize: '0.7rem' }}>Sort by</label>
+                  <select 
+                    value={filters.sortBy} 
+                    onChange={(e) => setFilters({...filters, sortBy: e.target.value})}
+                  >
+                    <option value="">Newest scan</option>
+                    <option value="date">Date / time</option>
+                    <option value="folder">Folder</option>
+                    <option value="name">Name</option>
+                    <option value="duration">Duration</option>
+                  </select>
+                </div>
+                <div className="form-group" style={{ margin: 0, minWidth: '100px' }}>
+                  <label style={{ fontSize: '0.7rem' }}>Order</label>
+                  <select 
+                    value={filters.sortOrder} 
+                    onChange={(e) => setFilters({...filters, sortOrder: e.target.value})}
+                  >
+                    <option value="desc">Descending</option>
+                    <option value="asc">Ascending</option>
+                  </select>
+                </div>
                 <button className="btn btn-primary" onClick={() => fetchVideos(selectedFolder || undefined)}>
                   Filter
                 </button>
-                {(filters.resolution || filters.camera || filters.minDuration || filters.maxDuration || filters.search || selectedTag) && (
+                {(filters.folder || filters.resolution || filters.camera || filters.minDuration || filters.maxDuration || filters.search || filters.sortBy || selectedTag) && (
                   <button className="btn btn-secondary" onClick={() => {
-                    setFilters({ resolution: '', camera: '', minDuration: '', maxDuration: '', search: '' })
+                    setFilters({ folder: '', resolution: '', camera: '', minDuration: '', maxDuration: '', search: '', sortBy: '', sortOrder: 'desc' })
                     setSelectedTag(null)
-                    fetchVideos(selectedFolder || undefined)
+                    fetchVideos(selectedFolder || undefined, true)
                   }}>
                     <X size={14} />
                     Clear
@@ -1676,7 +1718,7 @@ function App() {
                         onChange={(e) => { e.stopPropagation(); toggleVideoSelection(video.id) }}
                         style={{ position: 'absolute', top: '8px', left: '8px', zIndex: 2 }}
                       />
-                      <div className="video-thumbnail">
+                      <div className="video-thumbnail" style={{ aspectRatio: thumbnailAspect(video.resolution) }}>
                         {video.thumbnail ? (
                           <img src={`${API_BASE}/api/thumbnails/${video.id}`} alt={video.filename} />
                         ) : (
@@ -1711,6 +1753,12 @@ function App() {
                         <div className="video-meta">
                           {video.resolution && <span>{video.resolution}</span>}
                           {video.camera_type && <span>{video.camera_type}</span>}
+                          {video.gps_data && video.gps_data.latitude && (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                              <MapPin size={11} />
+                              {video.gps_data.longitude >= 0 ? 'E' : 'W'} / {video.gps_data.latitude >= 0 ? 'N' : 'S'}
+                            </span>
+                          )}
                         </div>
                         <div className="video-tags">
                           {video.tags?.slice(0, 3).map((tag, i) => (
@@ -2559,3 +2607,9 @@ function App() {
 }
 
 export default App
+
+function thumbnailAspect(resolution?: string | null) {
+  const m = /^(\d+)\s*[x×]\s*(\d+)$/i.exec((resolution || '').trim())
+  if (m && Number(m[2]) > 0) return `${m[1]} / ${m[2]}`
+  return '16 / 9'
+}

@@ -1,4 +1,4 @@
-import { Grid, List, Image } from 'lucide-react'
+import { Grid, List, Image, MapPin } from 'lucide-react'
 import type { VideoItem } from '../types'
 
 interface VideoListViewProps {
@@ -54,7 +54,7 @@ export function VideoListView({
         <div className="video-grid">
           {videos.map((video) => (
             <div key={video.id} className="video-card" onClick={() => onVideoClick(video)}>
-              <div className="video-thumbnail">
+              <div className="video-thumbnail" style={{ aspectRatio: thumbnailAspect(video.resolution) }}>
                 {video.thumbnail ? (
                   <img src={`${API_BASE}/api/thumbnails/${video.id}`} alt={video.filename} />
                 ) : (
@@ -70,6 +70,12 @@ export function VideoListView({
                 <div className="video-meta">
                   {video.resolution && <span>{video.resolution}</span>}
                   {video.camera_type && <span>{video.camera_type}</span>}
+                  {video.gps_data && video.gps_data.latitude && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+                      <MapPin size={11} />
+                      {video.gps_data.longitude >= 0 ? 'E' : 'W'} / {video.gps_data.latitude >= 0 ? 'N' : 'S'}
+                    </span>
+                  )}
                   {video.rating && <span>{'★'.repeat(video.rating)}</span>}
                 </div>
                 <div className="video-tags">
@@ -133,7 +139,13 @@ export function VideoListView({
             </tbody>
           </table>
         </div>
-      )}
-    </>
+)}
+      </>
   )
+}
+
+function thumbnailAspect(resolution?: string | null) {
+  const m = /^(\d+)\s*[x×]\s*(\d+)$/i.exec((resolution || '').trim())
+  if (m && Number(m[2]) > 0) return `${m[1]} / ${m[2]}`
+  return '16 / 9'
 }

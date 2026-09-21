@@ -675,15 +675,16 @@ td {
 
 .video-card .video-thumbnail {
   width: 100%;
-  height: 124px;
+  aspect-ratio: 16 / 9;
+  height: auto;
   position: relative;
-  background: var(--bg-primary);
+  background: #000;
 }
 
 .video-card .video-thumbnail img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .video-card .no-thumbnail {
