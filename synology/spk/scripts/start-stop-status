@@ -1,0 +1,9 @@
+#!/bin/sh
+# Container start/stop is handled by the Docker Project worker (conf/resource).
+FLAG="${SYNOPKG_PKGVAR}/running"
+case "$1" in
+    start) touch "${FLAG}" ;;
+    stop) rm -f "${FLAG}" ;;
+    status) [ -f "${FLAG}" ] || exit 3 ;;
+esac
+exit 0

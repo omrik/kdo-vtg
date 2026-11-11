@@ -149,6 +149,7 @@ export interface AppSettings {
   gemini_model: string
   whisper_model: string
   media_root: string
+  editor_media_root?: string
   scan_defaults: {
     yolo_enabled: boolean
     scene_detection_enabled: boolean

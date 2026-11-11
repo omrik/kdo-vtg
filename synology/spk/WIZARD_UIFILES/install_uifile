@@ -1,0 +1,46 @@
+[
+  {
+    "step_title": "KDO Video Tagger setup",
+    "items": [
+      {
+        "type": "textfield",
+        "desc": "Shared folder with your footage. It is mounted read-only, KDO never modifies your videos.",
+        "subitems": [
+          {
+            "key": "wizard_media_path",
+            "desc": "Media folder",
+            "defaultValue": "/volume1/video",
+            "validator": { "allowBlank": false, "regex": { "expr": "/^\\/volume[0-9]+\\/.+/", "errorText": "Use a full path such as /volume1/video" } }
+          }
+        ]
+      },
+      {
+        "type": "textfield",
+        "desc": "Port for the web interface.",
+        "subitems": [
+          {
+            "key": "wizard_port",
+            "desc": "Web UI port",
+            "defaultValue": "8080",
+            "validator": { "allowBlank": false, "regex": { "expr": "/^[0-9]{2,5}$/", "errorText": "Enter a port number" } }
+          }
+        ]
+      },
+      {
+        "type": "textfield",
+        "desc": "User and group that can read the media folder. 1026 is the first user created on DSM, 100 is the 'users' group. Run 'id <username>' over SSH to find yours.",
+        "subitems": [
+          { "key": "wizard_puid", "desc": "User ID (PUID)", "defaultValue": "1026" },
+          { "key": "wizard_pgid", "desc": "Group ID (PGID)", "defaultValue": "100" }
+        ]
+      },
+      {
+        "type": "password",
+        "desc": "Optional: Google Gemini API key for AI chapter generation. Leave empty to keep everything local.",
+        "subitems": [
+          { "key": "wizard_gemini_key", "desc": "Gemini API key", "defaultValue": "" }
+        ]
+      }
+    ]
+  }
+]

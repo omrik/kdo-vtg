@@ -29,6 +29,7 @@ RUN pip install --no-cache-dir --break-system-packages \
 
 COPY backend/ ./backend/
 COPY VERSION ./
+COPY docker/entrypoint.sh /usr/local/bin/kdo-entrypoint
 
 COPY frontend/dist/ ./static/
 
@@ -42,6 +43,8 @@ LABEL org.opencontainers.image.licenses="MIT"
 RUN useradd -m -u 1000 kdo \
     && mkdir -p /app/config /app/media /opt/kdo-vtg/models \
     && python -c "import urllib.request; urllib.request.urlretrieve('https://github.com/ultralytics/assets/releases/download/v8.4.0/yolov8n.pt', '/opt/kdo-vtg/models/yolov8n.pt')" \
+    && chmod 0755 /usr/local/bin/kdo-entrypoint \
+    && chmod -R a+rX /opt/kdo-vtg/models \
     && chown -R kdo:kdo /app/config /app/media
 
 ENV PYTHONUNBUFFERED=1
@@ -59,4 +62,5 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 EXPOSE 8000
 
+ENTRYPOINT ["/usr/local/bin/kdo-entrypoint"]
 CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,0 +1,15 @@
+{
+    "docker-project": {
+        "projects": [
+            {
+                "name": "kdo-vtg",
+                "path": "kdo-vtg",
+                "build_params": {
+                    "force_pull": true,
+                    "force_recreate": true,
+                    "build": false
+                }
+            }
+        ]
+    }
+}

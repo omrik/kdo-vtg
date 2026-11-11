@@ -20,11 +20,13 @@ from backend.database import (
 from backend.settings import (
     get_setting, get_setting_bool, set_setting, settings_payload,
     KEY_GEMINI_API_KEY, KEY_GEMINI_MODEL, KEY_WHISPER_MODEL, KEY_MEDIA_ROOT,
+    KEY_EDITOR_MEDIA_ROOT,
     KEY_SCAN_YOLO, KEY_SCAN_SCENE, KEY_SCAN_SHOT, KEY_SCAN_COLOR,
     KEY_SCAN_SAMPLE_INTERVAL, KEY_SCAN_AFTER, DEFAULT_MEDIA_ROOT,
 )
 from backend.scanner import VideoScanner, cancel_scan
 from backend.export import videos_to_csv, videos_to_excel, get_latest_scan
+from backend import editor_export
 from backend.auth import (
     verify_password, get_password_hash, create_access_token,
     get_current_user
@@ -232,6 +234,7 @@ class SettingsUpdate(BaseModel):
     gemini_model: Optional[str] = None
     whisper_model: Optional[str] = None
     media_root: Optional[str] = None
+    editor_media_root: Optional[str] = None
     yolo_enabled: Optional[bool] = None
     scene_detection_enabled: Optional[bool] = None
     shot_type_enabled: Optional[bool] = None
@@ -372,6 +375,8 @@ def update_settings(
         set_setting(db, KEY_WHISPER_MODEL, request.whisper_model)
     if request.media_root is not None:
         set_setting(db, KEY_MEDIA_ROOT, request.media_root)
+    if request.editor_media_root is not None:
+        set_setting(db, KEY_EDITOR_MEDIA_ROOT, request.editor_media_root)
     if request.yolo_enabled is not None:
         set_setting(db, KEY_SCAN_YOLO, "1" if request.yolo_enabled else "0")
     if request.scene_detection_enabled is not None:
@@ -1183,52 +1188,30 @@ def export_excel(
     )
 
 
-def generate_edl(videos: list) -> str:
-    """Generate CMX 3600 EDL from video list."""
-    edl_lines = [
-        "TITLE: KDO Video Tagger Export",
-        "",
-    ]
-    
-    reel_names = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-    
-    for i, video in enumerate(videos, 1):
-        filename = video.filename
-        duration_frames = int((video.duration or 1) * 30)
-        
-        reel_name = "KDO"
-        if len(filename) > 8:
-            ext = filename.split('.')[-1] if '.' in filename else ""
-            name_part = filename[:8 - len(ext) - 1] if ext else filename[:8]
-            reel_name = f"{name_part[:8].upper()}{ext[:3].upper()}"
-        
-        source_in = "00:00:00:00"
-        source_out = f"{int((video.duration or 0) / 3600):02d}:{int((video.duration or 0) / 60 % 60):02d}:{int(video.duration or 0) % 60:02d}:00"
-        
-        record_in = f"{int((i-1) * (video.duration or 0) / 3600):02d}:{int((i-1) * (video.duration or 0) / 60 % 60):02d}:{int((i-1) * (video.duration or 0) % 60):02d}:00"
-        record_out = f"{int(i * (video.duration or 0) / 3600):02d}:{int(i * (video.duration or 0) / 60 % 60):02d}:{int(i * (video.duration or 0) % 60):02d}:00"
-        
-        edl_lines.append(f"{i:03d}  {reel_name} V  C        {source_in} {source_out} {record_in} {record_out}")
-        edl_lines.append(f"* FROM CLIP NAME: {filename}")
-        edl_lines.append(f"* FILE: {video.filepath}")
-        if video.resolution:
-            edl_lines.append(f"* RESOLUTION: {video.resolution}")
-        if video.duration:
-            edl_lines.append(f"* DURATION: {video.duration:.2f}s")
-        if video.rating:
-            edl_lines.append(f"* RATING: {video.rating}/5")
-        if video.tags:
-            edl_lines.append(f"* TAGS: {', '.join(video.tags)}")
-        if video.shot_types:
-            dominant = video.shot_types.get('dominant_shot', 'N/A')
-            edl_lines.append(f"* DOMINANT SHOT: {dominant}")
-        if video.gps_data:
-            lat = video.gps_data.get('latitude', 'N/A')
-            lon = video.gps_data.get('longitude', 'N/A')
-            edl_lines.append(f"* GPS: {lat}, {lon}")
-        edl_lines.append("")
-    
-    return "\n".join(edl_lines)
+def _export_videos(db: Session, request: Optional[dict]) -> list:
+    """Videos for an export request, keeping the caller's video_ids order."""
+    ids = (request or {}).get("video_ids")
+    if ids:
+        by_id = {v.id: v for v in db.query(Video).filter(Video.id.in_(ids)).all()}
+        return [by_id[i] for i in ids if i in by_id]
+    return db.query(Video).order_by(Video.filepath).all()
+
+
+def _export_paths(db: Session, request: Optional[dict]) -> dict:
+    """media_root -> editor path mapping (request overrides the saved setting)."""
+    request = request or {}
+    editor_root = request.get("editor_media_root")
+    if editor_root is None:
+        editor_root = get_setting(db, KEY_EDITOR_MEDIA_ROOT, "") or ""
+    return {
+        "media_root": get_setting(db, KEY_MEDIA_ROOT, DEFAULT_MEDIA_ROOT),
+        "editor_root": editor_root or None,
+    }
+
+
+def _export_name(request: Optional[dict], default: str) -> str:
+    name = str((request or {}).get("name") or default).strip() or default
+    return "".join(c for c in name if c.isalnum() or c in " -_.")[:80] or default
 
 
 @app.post("/api/export/edl")
@@ -1237,17 +1220,74 @@ def export_edl(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    if request and request.get("video_ids"):
-        videos = db.query(Video).filter(Video.id.in_(request["video_ids"])).all()
-    else:
-        videos = db.query(Video).all()
-    
-    edl_content = generate_edl(videos)
-    
+    videos = _export_videos(db, request)
+    name = _export_name(request, "KDO Selects")
+    edl_content = editor_export.generate_edl(videos, title=name, **_export_paths(db, request))
     return Response(
         content=edl_content,
         media_type="text/plain",
-        headers={"Content-Disposition": "attachment; filename=videos.edl"}
+        headers={"Content-Disposition": f'attachment; filename="{name}.edl"'}
+    )
+
+
+@app.post("/api/export/fcpxml")
+def export_fcpxml(
+    request: dict = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """FCPXML for Final Cut Pro and DaVinci Resolve (keywords, markers, selects timeline)."""
+    videos = _export_videos(db, request)
+    name = _export_name(request, "KDO Selects")
+    content = editor_export.generate_fcpxml(
+        videos,
+        event_name=editor_export.APP_NAME,
+        timeline_name=name,
+        include_timeline=bool((request or {}).get("include_timeline", True)),
+        **_export_paths(db, request),
+    )
+    return Response(
+        content=content,
+        media_type="application/xml",
+        headers={"Content-Disposition": f'attachment; filename="{name}.fcpxml"'}
+    )
+
+
+@app.post("/api/export/premiere")
+def export_premiere(
+    request: dict = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """FCP7 XML (xmeml) for Adobe Premiere Pro: bin of tagged master clips + selects sequence."""
+    videos = _export_videos(db, request)
+    name = _export_name(request, "KDO Selects")
+    content = editor_export.generate_premiere_xml(
+        videos,
+        timeline_name=name,
+        include_timeline=bool((request or {}).get("include_timeline", True)),
+        **_export_paths(db, request),
+    )
+    return Response(
+        content=content,
+        media_type="application/xml",
+        headers={"Content-Disposition": f'attachment; filename="{name}.xml"'}
+    )
+
+
+@app.post("/api/export/resolve-csv")
+def export_resolve_csv(
+    request: dict = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Metadata CSV for DaVinci Resolve Media Pool > Import Metadata."""
+    videos = _export_videos(db, request)
+    content = editor_export.generate_resolve_csv(videos, **_export_paths(db, request))
+    return Response(
+        content=content,
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="resolve-metadata.csv"'}
     )
 
 

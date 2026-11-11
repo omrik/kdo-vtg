@@ -23,10 +23,10 @@ Stop manually typing metadata for every clip. Scan folders with thousands of vid
 Enable YOLO-based object detection to automatically identify what's in your footage - people, vehicles, animals, equipment, and more.
 
 ### Perfect for Video Editors
-Export clean CSV or Excel spreadsheets ready for Premiere Pro, DaVinci Resolve, or Final Cut Pro workflows.
+Export straight into your NLE: **FCPXML** (Final Cut Pro, DaVinci Resolve), **Premiere Pro XML**, and a **DaVinci Resolve metadata CSV**. Tags arrive as keywords, scene cuts and AI chapters as markers, and your best-rated clips as favorites, with a ready-made selects timeline. Set your NAS share path once and clips link without relinking. See [Editor workflows](docs/EDITOR-WORKFLOWS.md).
 
 ### Works Where You Work
-- **NAS** - Run on your UGREEN NAS or any Docker-enabled NAS
+- **NAS** - Native packages for UGREEN App Center and Synology Package Center, plus templates for Unraid and CasaOS (amd64 + arm64). See [NAS guide](docs/NAS.md)
 - **Local** - Works on Mac, Windows, or Linux
 - **Private** - Self-hosted, your videos never leave your network
 
@@ -50,7 +50,8 @@ Export clean CSV or Excel spreadsheets ready for Premiere Pro, DaVinci Resolve, 
 | **Star Ratings** | Rate your best clips |
 | **Collections & Projects** | Organize videos your way |
 | **Duplicate Detection** | Find similar or duplicate videos |
-| **Export** | CSV, Excel, EDL (for Premiere/DaVinci), PDF shot lists |
+| **NLE Export** | FCPXML (Final Cut / Resolve), Premiere Pro XML, Resolve metadata CSV, EDL, with keywords, markers and a selects timeline |
+| **Spreadsheets** | CSV, Excel, PDF shot lists |
 
 ---
 
@@ -120,6 +121,8 @@ environment:
 ## Documentation
 
 - [Installation Guide](docs/INSTALLATION.md) - Detailed setup for NAS and local
+- [NAS Guide](docs/NAS.md) - UGREEN, Synology, Unraid, CasaOS, QNAP, TrueNAS, PUID/PGID
+- [Editor Workflows](docs/EDITOR-WORKFLOWS.md) - Importing into Final Cut, Resolve and Premiere
 - [User Guide](docs/USAGE.md) - How to use all features
 - [Development](docs/DEVELOPMENT.md) - For contributors
 
@@ -157,8 +160,14 @@ docker compose up -d
 Your config and database live in the `config` volume and are preserved.
 
 ### Which NAS devices are supported?
-Anything that runs Docker: UGREEN (DX and DH4300 Plus), Synology, QNAP, unRAID,
-TrueNAS, TerraMaster, or any Linux host. Requires an x86/amd64 CPU.
+Anything that runs Docker, on Intel/AMD (amd64) or ARM (arm64): UGREEN (App Center
+package), Synology DSM 7.2+ (Package Center package or Container Manager), Unraid,
+CasaOS/ZimaOS, QNAP, TrueNAS, TerraMaster, or any Linux host. See the [NAS guide](docs/NAS.md).
+
+### I get "config is not writable" on my NAS
+Set `PUID`/`PGID` to a NAS user that can read your media share and start the
+container with `user: "0:0"`. The app chowns only its config folder, then drops
+root. Details in [docs/NAS.md](docs/NAS.md#file-permissions-puid--pgid).
 
 ### Is it really free?
 Yes — MIT licensed, no accounts, no per-seat fees. Optional add-ons (like Gemini

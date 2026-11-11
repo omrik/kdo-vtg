@@ -1,0 +1,20 @@
+# KDO Video Tagger for Synology Container Manager (DSM 7.2+).
+#
+# Container Manager -> Project -> Create -> "Create docker-compose.yml",
+# paste this file, and adjust the three marked lines. See docs/NAS.md.
+services:
+  kdo-vtg:
+    image: ghcr.io/omrik/kdo-vtg:latest
+    container_name: kdo-vtg
+    user: "0:0"            # entrypoint chowns config to PUID:PGID, then drops root
+    ports:
+      - "8080:8000"        # <- change 8080 if the port is taken
+    volumes:
+      - /volume1/docker/kdo-vtg:/app/config:rw   # <- create this folder first
+      - /volume1/video:/media:ro                 # <- your footage share
+    environment:
+      - TZ=Europe/London
+      - PUID=1026          # <- run `id <your-user>` over SSH (first DSM user is 1026)
+      - PGID=100           # users group
+      - GEMINI_API_KEY=    # optional, AI chapters only
+    restart: unless-stopped

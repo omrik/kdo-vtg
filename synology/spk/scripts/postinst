@@ -1,0 +1,26 @@
+#!/bin/sh
+# Write the compose .env from the install wizard answers. The Docker Project
+# worker creates the Container Manager project right after postinst.
+ENV_FILE="${SYNOPKG_PKGDEST}/kdo-vtg/.env"
+CONFIG_DIR="${SYNOPKG_PKGVAR}/config"
+mkdir -p "${CONFIG_DIR}"
+
+# Keep previous answers on upgrade (wizard values are empty then).
+if [ -f "${SYNOPKG_PKGVAR}/kdo-vtg.env" ] && [ -z "${wizard_media_path}" ]; then
+    cp "${SYNOPKG_PKGVAR}/kdo-vtg.env" "${ENV_FILE}"
+    exit 0
+fi
+
+TZ_NAME="$(readlink /etc/localtime 2>/dev/null | sed 's|.*/zoneinfo/||')"
+cat > "${ENV_FILE}" <<ENV
+MEDIA_PATH=${wizard_media_path:-/volume1/video}
+WEBUI_PORT=${wizard_port:-8080}
+PUID=${wizard_puid:-1026}
+PGID=${wizard_pgid:-100}
+GEMINI_API_KEY=${wizard_gemini_key}
+KDO_CONFIG_DIR=${CONFIG_DIR}
+TZ=${TZ_NAME:-UTC}
+ENV
+chmod 600 "${ENV_FILE}"
+cp "${ENV_FILE}" "${SYNOPKG_PKGVAR}/kdo-vtg.env"
+exit 0

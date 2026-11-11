@@ -4,6 +4,43 @@ _Cumulative log of significant bugs discovered and resolved. Add new entries at 
 
 ---
 
+## 2026-11-11 — EDL export and NAS permissions
+
+### BUG-008 — EDL record timecodes wrong and frame rate hardcoded
+
+**Impact:** Exported EDLs placed clips at the wrong timeline positions (record
+in/out were `index × duration`, not cumulative), always assumed 30 fps, dropped
+frames from source out, and built reel names that NLEs reject.
+
+**Root cause:** `generate_edl` in `main.py` computed record TC per clip from
+its own duration and the event index.
+
+**Fix:** New `backend/editor_export.py`: exact frame rates (23.976/29.97/59.94
+snapped), cumulative record TC from `01:00:00:00` in non-drop timecode, valid
+`AX###` reels, `FROM CLIP NAME` / `SOURCE FILE` comments with editor path
+mapping. (A first version started NTSC timelines at `00:59:56:12`; caught in
+e2e and covered by `test_ntsc_timeline_starts_at_one_hour`.)
+
+**Verified:** `tests/test_editor_export.py`; e2e on a scratch container with
+29.97 and 25 fps clips.
+
+### BUG-009 — PUID/PGID ignored, so the app crashes on NAS-owned config folders
+
+**Impact:** Compose files and the UGREEN package passed `PUID`/`PGID`, but the
+image always ran as uid 1000. On Synology/UGREEN/Unraid, where the config
+folder belongs to the NAS user or root, SQLite couldn't write and the app
+failed to start.
+
+**Fix:** `docker/entrypoint.sh`: as root with PUID/PGID it chowns only
+`/app/config` and drops privileges with `setpriv`. Any `--user` uid works (HOME
+and model caches move into `/app/config`). An unwritable config folder now gives
+a clear error. NAS templates use `user: "0:0"` + PUID/PGID.
+
+**Verified:** default uid, root+PUID=1026 on a root-owned volume, `--user
+1234` writable, `--user 1234` unwritable (clean exit 1).
+
+---
+
 ## 2026-09-21 — Stage branch: project/collection grid distorts vertical videos
 
 Found after promoting BUG-005/006 to `main` and re-verifying on `localhost:8080`.

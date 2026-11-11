@@ -1,0 +1,61 @@
+# CasaOS / ZimaOS app definition for KDO Video Tagger.
+# Install: CasaOS -> App Store -> Custom Install -> Import, paste this file.
+name: kdo-vtg
+services:
+  kdo-vtg:
+    image: ghcr.io/omrik/kdo-vtg:latest
+    container_name: kdo-vtg
+    user: "0:0"
+    restart: unless-stopped
+    ports:
+      - target: 8000
+        published: "8080"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: /DATA/AppData/kdo-vtg/config
+        target: /app/config
+      - type: bind
+        source: /DATA/Media
+        target: /media
+        read_only: true
+    environment:
+      PUID: "1000"
+      PGID: "1000"
+      TZ: UTC
+      GEMINI_API_KEY: ""
+    x-casaos:
+      envs:
+        - container: PUID
+          description: { en_us: User ID }
+        - container: PGID
+          description: { en_us: Group ID }
+        - container: GEMINI_API_KEY
+          description: { en_us: "Optional Gemini API key (AI chapters only)" }
+      ports:
+        - container: "8000"
+          description: { en_us: Web UI port }
+      volumes:
+        - container: /app/config
+          description: { en_us: Database, thumbnails and model cache }
+        - container: /media
+          description: { en_us: Your footage (read-only) }
+x-casaos:
+  architectures: [amd64, arm64]
+  main: kdo-vtg
+  author: omrik
+  developer: omrik
+  category: Media
+  icon: https://raw.githubusercontent.com/omrik/kdo-vtg/main/ugreen/rootfs_common/icon.png
+  screenshot_link:
+    - https://raw.githubusercontent.com/omrik/kdo-vtg/main/docs/screenshots/results-grid.png
+    - https://raw.githubusercontent.com/omrik/kdo-vtg/main/docs/screenshots/modal.png
+  tagline: { en_us: Self-hosted video tagger and editor export tool }
+  description:
+    en_us: >-
+      Scan your footage for codec, scenes, shot types, objects, GPS and colour,
+      transcribe locally with Whisper, and export FCPXML, Premiere XML,
+      DaVinci Resolve metadata CSV and EDL. Nothing leaves your server.
+  title: { en_us: KDO Video Tagger }
+  index: /
+  port_map: "8080"

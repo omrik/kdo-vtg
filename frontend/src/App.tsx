@@ -92,6 +92,7 @@ function App() {
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null)
   const [aiForm, setAiForm] = useState({ gemini_key: '', gemini_model: '', whisper_model: '' })
   const [mediaRootInput, setMediaRootInput] = useState('/media')
+  const [editorRootInput, setEditorRootInput] = useState('')
   const [scanDefaultsForm, setScanDefaultsForm] = useState({
     yolo_enabled: false,
     scene_detection_enabled: false,
@@ -378,6 +379,7 @@ function App() {
       const data: AppSettings = await res.json()
       setAppSettings(data)
       setMediaRootInput(data.media_root || '/media')
+      setEditorRootInput(data.editor_media_root || '')
       setAiForm({
         gemini_key: '',
         gemini_model: data.gemini_model || '',
@@ -506,6 +508,27 @@ function App() {
       fetchFolders()
     } catch (err) {
       setError('Failed to save media root')
+    }
+  }
+
+  const saveEditorRoot = async () => {
+    setError(null)
+    try {
+      const res = await fetch(`${API_BASE}/api/settings`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ editor_media_root: editorRootInput.trim() }),
+      })
+      if (!res.ok) {
+        setError('Failed to save editor media path')
+        return
+      }
+      await fetchSettings()
+    } catch (err) {
+      setError('Failed to save editor media path')
     }
   }
 
@@ -967,7 +990,7 @@ function App() {
     }
   }
 
-  const exportVideos = async (format: 'csv' | 'excel' | 'edl' | 'pdf') => {
+  const exportVideos = async (format: 'csv' | 'excel' | 'edl' | 'pdf' | 'fcpxml' | 'premiere' | 'resolve-csv') => {
     const videoIds = selectedVideos.size > 0 ? Array.from(selectedVideos) : videos.map(v => v.id)
     try {
       const res = await fetch(`${API_BASE}/api/export/${format}`, {
@@ -983,7 +1006,9 @@ function App() {
         const url = window.URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `videos.${format === 'excel' ? 'xlsx' : format}`
+        const disposition = res.headers.get('Content-Disposition') || ''
+        const match = disposition.match(/filename="?([^";]+)"?/)
+        a.download = match ? match[1] : `videos.${format === 'excel' ? 'xlsx' : format}`
         document.body.appendChild(a)
         a.click()
         window.URL.revokeObjectURL(url)
@@ -1722,7 +1747,19 @@ function App() {
                   <Download size={14} />
                   Excel
                 </button>
-                <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => exportVideos('edl')} title="Export as EDL for Premiere/DaVinci">
+                <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => exportVideos('fcpxml')} title="FCPXML for Final Cut Pro and DaVinci Resolve: tagged clips with keywords, scene and chapter markers, plus a selects timeline">
+                  <Download size={14} />
+                  FCPXML
+                </button>
+                <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => exportVideos('premiere')} title="XML for Adobe Premiere Pro (File > Import): bin of tagged master clips with markers, plus a selects sequence">
+                  <Download size={14} />
+                  Premiere XML
+                </button>
+                <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => exportVideos('resolve-csv')} title="DaVinci Resolve metadata CSV: Media Pool > select clips > right-click > Import Metadata">
+                  <Download size={14} />
+                  Resolve CSV
+                </button>
+                <button className="btn btn-secondary" style={{ fontSize: '0.75rem' }} onClick={() => exportVideos('edl')} title="CMX 3600 EDL (any NLE)">
                   <Download size={14} />
                   EDL
                 </button>
@@ -2379,6 +2416,24 @@ function App() {
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
                   Path inside the container where your videos live.
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>Editor Media Path</label>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input
+                    type="text"
+                    placeholder="/Volumes/video  or  Z:\video  or  \\NAS\video"
+                    value={editorRootInput}
+                    onChange={(e) => setEditorRootInput(e.target.value)}
+                  />
+                  <button className="btn btn-secondary" onClick={saveEditorRoot}>
+                    Save
+                  </button>
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                  Where your editing computer sees the media root (the mounted NAS share). FCPXML, Premiere XML, Resolve CSV and EDL exports use it so clips link without relinking. Leave empty to keep container paths.
                 </div>
               </div>
 

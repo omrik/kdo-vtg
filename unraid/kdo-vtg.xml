@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>kdo-vtg</Name>
+  <Repository>ghcr.io/omrik/kdo-vtg:latest</Repository>
+  <Registry>https://github.com/omrik/kdo-vtg/pkgs/container/kdo-vtg</Registry>
+  <Network>bridge</Network>
+  <Shell>bash</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/omrik/kdo-vtg/issues</Support>
+  <Project>https://github.com/omrik/kdo-vtg</Project>
+  <Overview>Self-hosted video tagger for video editors. Scans your footage for resolution, codec, duration, scene cuts, shot types (WS/MS/CU), objects (YOLO), GPS and colour; transcribes speech locally with Whisper; and exports bins-ready FCPXML (Final Cut / DaVinci Resolve), Premiere Pro XML, DaVinci Resolve metadata CSV, EDL, CSV and Excel. Nothing leaves your server.</Overview>
+  <Category>MediaApp:Video Tools: Productivity:</Category>
+  <WebUI>http://[IP]:[PORT:8000]/</WebUI>
+  <TemplateURL>https://raw.githubusercontent.com/omrik/kdo-vtg/main/unraid/kdo-vtg.xml</TemplateURL>
+  <Icon>https://raw.githubusercontent.com/omrik/kdo-vtg/main/ugreen/rootfs_common/icon.png</Icon>
+  <ExtraParams>--user 0:0</ExtraParams>
+  <Requires>The container starts as root only to chown the appdata folder to PUID:PGID, then runs as that user. Media is mounted read-only.</Requires>
+  <Config Name="Web UI port" Target="8000" Default="8080" Mode="tcp" Description="Port for the web interface" Type="Port" Display="always" Required="true" Mask="false">8080</Config>
+  <Config Name="Media" Target="/media" Default="/mnt/user/media" Mode="ro" Description="Folder with your footage (read-only)" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/media</Config>
+  <Config Name="Appdata" Target="/app/config" Default="/mnt/user/appdata/kdo-vtg" Mode="rw" Description="Database, thumbnails and model cache" Type="Path" Display="advanced" Required="true" Mask="false">/mnt/user/appdata/kdo-vtg</Config>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User ID (99 = nobody on Unraid)" Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group ID (100 = users on Unraid)" Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
+  <Config Name="TZ" Target="TZ" Default="UTC" Mode="" Description="Time zone, e.g. Europe/London" Type="Variable" Display="advanced" Required="false" Mask="false">UTC</Config>
+  <Config Name="Gemini API key" Target="GEMINI_API_KEY" Default="" Mode="" Description="Optional, only for AI chapter generation" Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+</Container>

@@ -9,6 +9,7 @@ KEY_GEMINI_API_KEY = "gemini_api_key"
 KEY_GEMINI_MODEL = "gemini_model"
 KEY_WHISPER_MODEL = "whisper_model"
 KEY_MEDIA_ROOT = "media_root"
+KEY_EDITOR_MEDIA_ROOT = "editor_media_root"
 KEY_SCAN_YOLO = "scan_yolo_enabled"
 KEY_SCAN_SCENE = "scan_scene_detection_enabled"
 KEY_SCAN_SHOT = "scan_shot_type_enabled"
@@ -73,6 +74,7 @@ def settings_payload(db) -> dict:
         "gemini_model": get_setting(db, KEY_GEMINI_MODEL, "") or DEFAULT_GEMINI_MODEL,
         "whisper_model": get_setting(db, KEY_WHISPER_MODEL, DEFAULT_WHISPER_MODEL),
         "media_root": get_setting(db, KEY_MEDIA_ROOT, DEFAULT_MEDIA_ROOT),
+        "editor_media_root": get_setting(db, KEY_EDITOR_MEDIA_ROOT, "") or "",
         "scan_defaults": {
             "yolo_enabled": get_setting_bool(db, KEY_SCAN_YOLO),
             "scene_detection_enabled": get_setting_bool(db, KEY_SCAN_SCENE),

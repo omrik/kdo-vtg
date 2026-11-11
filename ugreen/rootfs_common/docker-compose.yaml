@@ -9,6 +9,9 @@ services:
     image: ghcr.io/omrik/kdo-vtg:0.6.20
     container_name: com.omrik.docker.kdovideotagger
     network_mode: bridge
+    # Start as root so the entrypoint can chown ./data to PUID:PGID, then it
+    # drops to that user (the media folder is never chowned).
+    user: "0:0"
     ports:
       - "${WEBUI_PORT}:8000"
     volumes:
@@ -16,7 +19,7 @@ services:
       - ${UGAPP_SHARED_DIR}:/media:ro
     environment:
       - TZ=${TZ}
-      - PUID=${PUID}
-      - PGID=${PGID}
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-100}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
     restart: always

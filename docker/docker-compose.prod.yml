@@ -2,6 +2,9 @@ services:
   kdo-vtg:
     image: ghcr.io/omrik/kdo-vtg:latest
     container_name: kdo-vtg
+    # Start as root so the entrypoint can chown the config dir to PUID:PGID,
+    # then the app drops to that user. Remove to run as the image's uid 1000.
+    user: "0:0"
     ports:
       - "8080:8000"
     volumes:

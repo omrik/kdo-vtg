@@ -37,3 +37,6 @@ ugreen/build_dir/
 
 # UGOS device authorization signature (private/device-bound)
 ugreen/*.sig
+
+# Synology SPK build output
+synology/build/
