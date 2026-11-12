@@ -10,7 +10,7 @@ reference so any session can pick up mid-air._
 
 | Target | Image / tag | Port | Purpose |
 |---|---|---|---|
-| Live on NAS (`kdo-vtg`) | `ghcr.io/omrik/kdo-vtg:latest` | 8080 | production instance, admin/admin123 |
+| Live on NAS (`kdo-vtg`) | `ghcr.io/omrik/kdo-vtg:latest` | 8080 | production instance |
 | Local test (light) | `kdo-vtg-yolofix` | 8091 | 3-clip smoke: `/media` + DJI test files |
 | Local build during work | `kdo-vtg-yolofix` (rebuilt) | 8091 | validate before committing |
 

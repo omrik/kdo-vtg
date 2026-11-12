@@ -40,3 +40,9 @@ ugreen/*.sig
 
 # Synology SPK build output
 synology/build/
+
+# Local agent/assistant working notes (not for the public repo)
+AGENTS.md
+CLAUDE.md
+.skills/
+.claude/
