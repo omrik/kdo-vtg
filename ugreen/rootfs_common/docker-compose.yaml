@@ -19,7 +19,7 @@ services:
       - ${UGAPP_SHARED_DIR}:/media:ro
     environment:
       - TZ=${TZ}
-      - PUID=${PUID:-1000}
-      - PGID=${PGID:-100}
+      - PUID=${PUID}
+      - PGID=${PGID}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
     restart: always
