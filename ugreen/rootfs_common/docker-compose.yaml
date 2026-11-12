@@ -13,7 +13,7 @@ services:
     # drops to that user (the media folder is never chowned).
     user: "0:0"
     ports:
-      - "${WEBUI_PORT}:8000"
+      - "8080:8000"   # must match `port` in project.yaml (App Center opens it)
     volumes:
       - ./data:/app/config:rw
       - ${UGAPP_SHARED_DIR}:/media:ro

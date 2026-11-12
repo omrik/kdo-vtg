@@ -4,6 +4,35 @@ _Cumulative log of significant bugs discovered and resolved. Add new entries at 
 
 ---
 
+## 2026-11-12 — UGREEN package: icon, port, PUID
+
+### BUG-010 — App Center icon and favicons garbled
+
+**Impact:** The UGREEN App Center icon and the browser favicons showed colour noise.
+
+**Root cause:** `scripts/make-png-icon.py` (pure-python PNG resize) mis-decodes
+the 1309x614 RGBA logo.
+
+**Fix:** Regenerated `ugreen/rootfs_common/icon.png` and the favicons with
+`sips` (pad to square, then resize). Don't use `make-png-icon.py` until fixed.
+
+### BUG-011 — App Center opens port 8080 whatever port the user picked
+
+**Impact:** The install dialog asked for a Web UI port, but App Center always
+opens the fixed `port` in `project.yaml` (8080), so any other choice made the
+app look broken after install.
+
+**Fix:** Removed the `WEBUI_PORT` parameter; the compose publishes `8080:8000`
+to match `port: 8080` (UGOS has no way to bind `port` to a parameter).
+
+### BUG-012 — `ugcli pack` rejects `${VAR:-default}`; empty PUID ran as root
+
+**Fix:** Compose uses plain `${PUID}`/`${PGID}`; the entrypoint falls back to
+uid/gid 1000 when started as root with PUID empty, so the optional install
+fields can be left blank.
+
+---
+
 ## 2026-11-11 — EDL export and NAS permissions
 
 ### BUG-008 — EDL record timecodes wrong and frame rate hardcoded

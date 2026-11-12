@@ -14,7 +14,13 @@ set -e
 CONFIG_DIR="${KDO_CONFIG_DIR:-/app/config}"
 
 if [ "$(id -u)" = "0" ]; then
-    if [ -n "${PUID}" ] && [ "${PUID}" != "0" ]; then
+    # No PUID given (e.g. an optional install field left empty): fall back to
+    # the image's own unprivileged user instead of staying root.
+    if [ -z "${PUID}" ]; then
+        PUID=1000
+        PGID="${PGID:-1000}"
+    fi
+    if [ "${PUID}" != "0" ]; then
         PGID="${PGID:-${PUID}}"
         mkdir -p "${CONFIG_DIR}"
         # Only walk the tree when ownership is actually wrong (large thumbnail
@@ -34,7 +40,7 @@ if [ "$(id -u)" = "0" ]; then
         export HOME="${CONFIG_DIR}/.home"
         exec setpriv --reuid="${PUID}" --regid="${PGID}" --clear-groups -- "$0" "$@"
     fi
-    echo "[kdo-vtg] WARNING: running as root. Set PUID/PGID to drop privileges."
+    echo "[kdo-vtg] WARNING: PUID=0, running as root."
 fi
 
 # Fail fast with an actionable message instead of a SQLite traceback.

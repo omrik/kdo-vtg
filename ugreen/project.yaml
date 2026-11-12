@@ -2,7 +2,7 @@
 # Validate with `ugcli check`; see https://developer.ugnas.com/en/doc/tools/project-yaml.html
 spec_version: "2.1"
 app_id: com.omrik.docker.kdovideotagger
-version: "0.6.17"
+version: "0.6.49"
 support_arch:
   - amd64
   - arm64
@@ -42,7 +42,7 @@ parameters:
     i18n:
       en-US:
         name: User ID
-        description: Numeric user ID for file permissions, e.g. 1000
+        description: Optional. Leave empty unless scans cannot read your files. Then enter the ID of a NAS user who can (SSH - id username)
   - key: PGID
     type: number
     required: false
@@ -50,15 +50,7 @@ parameters:
     i18n:
       en-US:
         name: Group ID
-        description: Numeric group ID for file permissions, e.g. 100
-  - key: WEBUI_PORT
-    type: number
-    required: true
-    changeable: true
-    i18n:
-      en-US:
-        name: Web UI port
-        description: Port for the web interface, e.g. 8080 (keep fixed after install)
+        description: Optional. Leave empty unless you set a User ID. Group of that NAS user
   - key: GEMINI_API_KEY
     type: password
     required: false
@@ -74,8 +66,8 @@ i18n:
     description: >-
       Self-hosted video metadata tagger. Scan media folders and tag every
       clip with resolution, codec, duration, scene type, objects, GPS and
-      color; export CSV/Excel and EDL; optional local Whisper transcription
-      and Gemini chapter planning. Your footage never leaves your NAS.
+      color; export FCPXML, Premiere XML, DaVinci Resolve CSV, EDL, CSV and
+      Excel; optional local Whisper transcription and Gemini chapter planning. Your footage never leaves your NAS.
     author: omrik
     official: https://github.com/omrik/kdo-vtg
     help: https://github.com/omrik/kdo-vtg/blob/main/docs/USAGE.md

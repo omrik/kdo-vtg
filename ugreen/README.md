@@ -52,7 +52,7 @@ arm64_com.omrik.docker.kdovideotagger_<version>.upk
 ## Test (sideload) then submit
 
 1. **App Center → Manual Install** the `.upk` on your device, or SSH/disk-sideload.
-2. Verify: install → grant a media folder → open the web UI at the WEBUI_PORT →
+2. Verify: install → grant a media folder → open the web UI (port 8080) →
    register the admin account → scan a folder → transcribe → export.
 3. Submit via `developer.ugnas.com` (security + UX review). App Center releases
    use a 30-day free-trial store model; updates flow only through App Center.
@@ -62,7 +62,7 @@ arm64_com.omrik.docker.kdovideotagger_<version>.upk
 - Image tag in `docker-compose.yaml` must match the tar and be a pinned
   version — `latest` is rejected. Build hosts therefore pull
   `ghcr.io/omrik/kdo-vtg:<VERSION>` (published on GitHub Releases).
-- One instance per device; keep the **WEBUI_PORT fixed** — App Center opens
+- One instance per device; the web UI port is fixed at **8080** — App Center opens
   exactly that port.
 - Container data lives under the app's data dir; users export/re-import the DB
   (Settings → Database) to migrate from a manual Docker install.
