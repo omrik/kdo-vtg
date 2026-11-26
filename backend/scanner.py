@@ -13,6 +13,21 @@ from sqlalchemy.orm import Session
 from backend.database import Video, ScanJob
 
 
+def disable_yolo_telemetry() -> None:
+    """Turn off Ultralytics' anonymous usage analytics (on by default).
+
+    KDO promises that nothing leaves the NAS, so object detection must not
+    report events to Ultralytics. Must run before `from ultralytics import YOLO`
+    creates its event reporter.
+    """
+    try:
+        from ultralytics import settings as yolo_settings
+        if yolo_settings.get("sync", True):
+            yolo_settings.update({"sync": False})
+    except Exception:
+        pass
+
+
 class VideoScanner:
     def __init__(
         self,
@@ -46,6 +61,7 @@ class VideoScanner:
 
     def init_yolo(self):
         if self.yolo_enabled and not self._yolo_initialized:
+            disable_yolo_telemetry()
             from ultralytics import YOLO
             weights = self._resolve_model_path()
             self.model = YOLO(weights)

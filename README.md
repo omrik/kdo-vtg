@@ -141,9 +141,10 @@ through footage, a coffee is hugely appreciated — and keeps me building:
 
 ### Does KDO Video Tagger upload my footage anywhere?
 **No.** Scanning, tagging, scene detection, object detection, color analysis, and
-transcription all run locally on your machine or NAS. The only feature that contacts
-an external service is optional **YouTube Chapters**, and only when you provide your
-own Google Gemini API key.
+transcription all run locally on your machine or NAS, with no analytics or telemetry.
+The only feature that sends data out is optional **YouTube Chapters**, and only when
+you provide your own Google Gemini API key. Speech models are downloaded once on first
+use. Details: [Privacy policy](PRIVACY.md).
 
 ### I get 503 when I click "Generate Chapters" — is it broken?
 No. Chapter generation needs a Gemini API key (Settings → AI & Transcription). Your

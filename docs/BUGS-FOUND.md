@@ -4,6 +4,23 @@ _Cumulative log of significant bugs discovered and resolved. Add new entries at 
 
 ---
 
+## 2026-11-26 — Object detection sent usage analytics
+
+### BUG-013 — Ultralytics analytics enabled by default
+
+**Impact:** Ultralytics (YOLO) ships with anonymous usage analytics on
+(`sync=True`), so object-detection runs could report events to Ultralytics,
+contradicting "nothing leaves your NAS".
+
+**Fix:** `ENV YOLO_OFFLINE=1` in the image, and `disable_yolo_telemetry()` in
+`scanner.py` sets `sync=False` before YOLO loads.
+
+**Verified:** in the built image `events.enabled` is False (with either
+guard), the saved settings show `"sync": false`, and a YOLO scan still
+completes offline-safe. Added `PRIVACY.md` listing every network call.
+
+---
+
 ## 2026-11-12 — UGREEN package: icon, port, PUID
 
 ### BUG-010 — App Center icon and favicons garbled

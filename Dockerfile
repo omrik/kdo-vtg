@@ -54,6 +54,8 @@ ENV DATABASE_URL=sqlite:///./config/kdo-vtg.db
 ENV PYTHONPATH=/app
 ENV HOME=/home/kdo
 ENV YOLO_WEIGHTS_DIR=/opt/kdo-vtg/models
+# No Ultralytics analytics or online checks: nothing leaves the NAS.
+ENV YOLO_OFFLINE=1
 
 USER kdo
 
