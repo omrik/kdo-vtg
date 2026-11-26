@@ -54,7 +54,7 @@ Set your NAS share path once and clips link in your editor without relinking.
 Private by design: your footage is mounted read-only and never leaves your
 NAS. Optional AI chapter titles use your own Google Gemini key.
 
-**Release notes (0.6.52)**
+**Release notes (0.6.53)**
 - First App Center release.
 - Export to Final Cut Pro, DaVinci Resolve and Premiere Pro.
 - Local speech-to-text, scene, shot and object detection.
